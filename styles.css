@@ -1755,112 +1755,55 @@ table.t tr.total td {
   border-top: 1px solid var(--border);
 }
 
-/* ===== Print rules para o relatorio (Ctrl+P / Save as PDF) =====
-   Escopado em body:has(.report) pra ativar SÓ no PageRelatorio standalone.
-   Sem isso, o background:white vazava pro Valuation e outras telas. */
+/* ===== Print rules pro Relatorio IA standalone (Ctrl+P / Save as PDF) =====
+   PRESERVA tema escuro da tela: só ajusta page-break/tipografia A4.
+   Cores/backgrounds vêm direto do tema dark via print-color-adjust: exact. */
 
 @media print {
-  body:has(.report) {
-    background: white !important;
-    color: black !important;
-  }
-  body:has(.report) .page {
-    background: white !important;
-    padding: 0 !important;
-  }
-
-  /* Relatorio tipografia A4 */
   body:has(.report) .report {
-    background: white !important;
-    color: black !important;
     border: 0 !important;
-    padding: 0 !important;
     max-width: 100% !important;
     font-size: 11pt;
-    font-family: 'Inter', Arial, sans-serif;
   }
 
-  .report-cover {
+  body:has(.report) .report-cover {
     page-break-after: always;
-    text-align: center;
-    padding: 60mm 0 0 !important;
-    border: 0 !important;
-    height: 240mm;
+    padding-top: 40mm !important;
+    height: auto;
+    min-height: 220mm;
   }
-  .report-logo {
-    /* Logo branco invertido pra print */
-    filter: invert(1) brightness(0);
+  body:has(.report) .report-logo {
     width: 50mm;
     margin-bottom: 16mm;
   }
-  .report-title {
-    font-size: 22pt !important;
-    color: black !important;
-    margin-bottom: 8mm !important;
-  }
-  .report-subtitle {
-    font-size: 14pt !important;
-    color: #333 !important;
-  }
-  .report-meta { color: #555 !important; font-size: 10pt !important; }
+  body:has(.report) .report-title { font-size: 22pt !important; }
+  body:has(.report) .report-subtitle { font-size: 14pt !important; }
+  body:has(.report) .report-meta { font-size: 10pt !important; }
 
-  .report-section {
-    page-break-before: always;
+  body:has(.report) .report-section {
     page-break-inside: avoid;
-    border: 0 !important;
-    padding: 0 !important;
   }
-  .report-section h2 {
-    font-size: 16pt !important;
-    color: black !important;
-    margin-bottom: 6mm !important;
-    border-bottom: 1px solid #999;
-    padding-bottom: 3mm;
-  }
-  .report-section h3.report-sub {
-    font-size: 10pt !important;
-    color: #333 !important;
-  }
+  body:has(.report) .report-section h2 { font-size: 16pt !important; }
+  body:has(.report) .report-section h3.report-sub { font-size: 10pt !important; }
 
-  .report-kpis {
+  body:has(.report) .report-kpis {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 4mm !important;
   }
-  .report-kpi {
-    background: #f5f5f5 !important;
-    border: 1px solid #ccc !important;
-    color: black !important;
-    page-break-inside: avoid;
-  }
-  .report-kpi .lbl { color: #555 !important; }
-  .report-kpi .val { color: black !important; }
-  .report-kpi .val.green { color: #047857 !important; }
-  .report-kpi .val.red { color: #b91c1c !important; }
+  body:has(.report) .report-kpi { page-break-inside: avoid; }
 
-  .report-list li {
-    border-bottom: 1px solid #ddd !important;
-    color: black !important;
-  }
-  .report-list li b { color: black !important; }
-
-  .report-analysis {
-    color: #222 !important;
+  body:has(.report) .report-analysis {
     font-size: 11pt !important;
     line-height: 1.6 !important;
     page-break-inside: avoid;
   }
 
-  .report-conclusion {
-    background: #f5f5f5 !important;
-    border: 1px solid #ccc !important;
-    color: black !important;
-    page-break-before: always;
+  body:has(.report) .report-conclusion {
+    page-break-inside: avoid;
   }
 
-  .report-footer {
-    color: #666 !important;
-    border-top: 1px solid #999 !important;
+  body:has(.report) .report-footer {
     margin-top: 8mm;
   }
 }
