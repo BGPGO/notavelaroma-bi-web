@@ -680,6 +680,95 @@ table.t tr.total td {
 .t-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .t-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
 
+/* ============== FLUXO: variantes de layout (sandbox) ============== */
+.fluxo-variant-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 6px 0 14px;
+  padding: 10px 14px;
+  background: rgba(34, 211, 238, 0.05);
+  border: 1px dashed rgba(34, 211, 238, 0.28);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.fluxo-variant-label {
+  font-size: 10.5px;
+  color: var(--cyan);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.fluxo-variant-hint {
+  font-size: 11px;
+  color: var(--fg-3);
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Scroll alto (B/C/D) — dinâmico: cresce com o conteúdo entre min e max */
+.fluxo-scroll-tall {
+  max-height: 78vh;
+  min-height: 280px;
+  height: auto;
+  overflow: auto;
+  border-radius: 10px;
+}
+
+/* 1ª coluna sticky (B/C/D) — o nome da categoria fica visível ao scrollar horizontal */
+.fluxo-sticky-wrap { position: relative; }
+.fluxo-table thead th:first-child,
+.fluxo-table tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--card);
+}
+.fluxo-table thead th:first-child { z-index: 4; background: var(--bg-2, #0f1719); }
+.fluxo-table tr.section td:first-child,
+.fluxo-table tr.total td:first-child { background: var(--bg-2, #0f1719); }
+.fluxo-table tbody tr:hover td:first-child { background: rgba(34, 211, 238, 0.04); }
+
+/* Variante C: célula compacta (valor empilhado com %) */
+.fluxo-table.fluxo-compact td.num.fluxo-stacked {
+  padding: 6px 10px;
+  line-height: 1.15;
+}
+/* Label da categoria mais perto da 1ª coluna numérica (compact + heatmap) */
+.fluxo-table.fluxo-compact thead th:first-child,
+.fluxo-table.fluxo-compact tbody td:first-child,
+.fluxo-table.fluxo-heatmap thead th:first-child,
+.fluxo-table.fluxo-heatmap tbody td:first-child {
+  padding-left: 12px;
+  padding-right: 6px;
+}
+.fluxo-table.fluxo-compact thead th.num:nth-child(2),
+.fluxo-table.fluxo-compact tbody td.num.fluxo-stacked:nth-child(2),
+.fluxo-table.fluxo-heatmap thead th.num:nth-child(2),
+.fluxo-table.fluxo-heatmap tbody td.num:nth-child(2) {
+  padding-left: 6px;
+}
+.fluxo-stacked-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.fluxo-stacked-pct {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--fg-3);
+  margin-top: 2px;
+}
+.fluxo-stacked-val.green { color: var(--green-2); }
+.fluxo-stacked-val.red { color: var(--red-2); }
+
+/* Variante D: heatmap — números um pouco mais densos */
+.fluxo-table.fluxo-heatmap td.num {
+  padding: 7px 10px;
+  font-size: 12px;
+  transition: background 200ms;
+}
+
 /* ============== BAR LISTS ============== */
 .bar-list { display: grid; gap: 10px; }
 .bar-row {

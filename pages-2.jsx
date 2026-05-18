@@ -11,6 +11,14 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
   const [view, setView] = useState("horizontal");
   const [range, setRange] = useState("12M");
   const months6 = B.MONTHS_FULL.slice(0, 6);
+  // Saldo acumulado reativo: B.SALDOS_MES vem do segmento estático e não recomputa
+  // em drilldown/filtro. Construímos o cumulativo a partir de B.VALOR_LIQ_SERIES,
+  // que é o net mensal recalculado por aggregateTx.
+  const saldosCum = useMemo(() => {
+    const series = B.VALOR_LIQ_SERIES || [];
+    let acc = 0;
+    return series.map(v => (acc += (v || 0)));
+  }, [B.VALOR_LIQ_SERIES]);
   const refYear = (B.META && B.META.ref_year) || new Date().getFullYear();
   const handleMonthHeader = (i) => {
     const mm = String(i + 1).padStart(2, "0");
@@ -20,6 +28,276 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
   };
   const activeMonthIdx = (drilldown && drilldown.type === "mes")
     ? parseInt(drilldown.value.slice(5, 7), 10) - 1 : -1;
+
+  // ===== Cálculos pré-computados (usados pelas 4 variantes) =====
+  const totalAnoReceita = useMemo(
+    () => B.FLUXO_RECEITA.reduce((s, r) => s + r.values.reduce((a, b) => a + (b || 0), 0), 0),
+    [B.FLUXO_RECEITA]
+  );
+  const totalAnoDespesa = useMemo(
+    () => B.FLUXO_DESPESA.reduce((s, r) => s + r.values.reduce((a, b) => a + (b || 0), 0), 0),
+    [B.FLUXO_DESPESA]
+  );
+  const receitaMesArr = useMemo(
+    () => months6.map((_, i) => B.FLUXO_RECEITA.reduce((s, r) => s + (r.values[i] || 0), 0)),
+    [B.FLUXO_RECEITA, months6.length]
+  );
+  const despesaMesArr = useMemo(
+    () => months6.map((_, i) => B.FLUXO_DESPESA.reduce((s, r) => s + (r.values[i] || 0), 0)),
+    [B.FLUXO_DESPESA, months6.length]
+  );
+
+  // Helper: calcula o %-label de uma célula
+  const cellPct = (v, rowValues, monthIdx, isReceita) => {
+    if (view === "vertical") {
+      const totalReceitaMes = receitaMesArr[monthIdx] || 0;
+      const pct = totalReceitaMes ? (v / totalReceitaMes) * 100 : 0;
+      return pct.toFixed(2).replace(".", ",") + "%";
+    }
+    const totalAnoLinha = rowValues.reduce((s, x) => s + (x || 0), 0);
+    return totalAnoLinha ? ((v / totalAnoLinha) * 100).toFixed(1).replace(".", ",") + "%" : "—";
+  };
+
+  // Helper: bg color pro heatmap (intensidade relativa ao máximo da linha)
+  const heatBg = (v, rowValues, isReceita) => {
+    const max = Math.max(...rowValues.map(x => Math.abs(x || 0)), 1);
+    const intensity = Math.min(1, Math.abs(v) / max);
+    if (isReceita) {
+      return `rgba(34, 197, 94, ${intensity * 0.45})`;
+    }
+    return `rgba(239, 68, 68, ${intensity * 0.45})`;
+  };
+  // Helper: cor do TEXTO por intensidade (usado no compact). Alpha vai de 0.35 (fraco) a 1 (forte)
+  const heatColor = (v, rowValues, isReceita) => {
+    const max = Math.max(...rowValues.map(x => Math.abs(x || 0)), 1);
+    const intensity = Math.min(1, Math.abs(v) / max);
+    const alpha = 0.35 + intensity * 0.65;
+    if (isReceita) return `rgba(74, 222, 128, ${alpha})`;
+    return `rgba(248, 113, 113, ${alpha})`;
+  };
+
+  // ===== Header do card (título + toggle horizontal/vertical) — reutilizado =====
+  const FluxoCardHeader = () => (
+    <>
+      <div className="card-title-row">
+        <h2 className="card-title">Fluxo de caixa</h2>
+        <div className="seg">
+          <button className={view === "horizontal" ? "active" : ""} onClick={() => setView("horizontal")}>Análise horizontal</button>
+          <button className={view === "vertical" ? "active" : ""} onClick={() => setView("vertical")}>Análise vertical</button>
+        </div>
+      </div>
+      <div className="status-line" style={{ marginBottom: 8, fontSize: 11 }}>
+        {view === "vertical"
+          ? "Vertical: todas as linhas (receita e despesa) como % da receita do mês"
+          : "Horizontal: cada mês como % do total anual da linha"}
+      </div>
+    </>
+  );
+
+  // ===== Tabela: renderiza thead+tbody conforme o modo =====
+  // mode: 'classic' (2 cols por mês: valor + %), 'compact' (1 col: valor empilhado com %), 'heatmap' (1 col: valor com bg colorido)
+  const renderTable = (mode) => {
+    const isClassic = mode === "classic";
+    const isCompact = mode === "compact";
+    const isHeatmap = mode === "heatmap";
+
+    return (
+      <table className={`t fluxo-table fluxo-${mode}`}>
+        <thead>
+          <tr>
+            <th className="fluxo-label-col" style={{ minWidth: isCompact ? 150 : 200 }}>Receita / Despesa</th>
+            {months6.map((m, i) => {
+              const isActive = i === activeMonthIdx;
+              return (
+                <React.Fragment key={m}>
+                  <th className={`num clickable-th ${isActive ? "active" : ""}`}
+                      onClick={() => handleMonthHeader(i)}
+                      style={{ cursor: "pointer" }}
+                      title="Clique para filtrar este mês">
+                    {m}
+                  </th>
+                  {isClassic && <th className="num">{view === "horizontal" ? "Δ%" : "%"}</th>}
+                </React.Fragment>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {/* Seção: Receita */}
+          <tr className="section">
+            <td>Receita</td>
+            {months6.map((_, i) => {
+              const total = receitaMesArr[i];
+              const pctLabel = view === "horizontal"
+                ? (totalAnoReceita ? ((total / totalAnoReceita) * 100).toFixed(1).replace(".", ",") + "%" : "—")
+                : "100%";
+              if (isClassic) {
+                return (
+                  <React.Fragment key={i}>
+                    <td className="num green">{B.fmt(total)}</td>
+                    <td className="num" style={{ color: "var(--fg-3)", fontWeight: view === "horizontal" ? 600 : 400 }}>{pctLabel}</td>
+                  </React.Fragment>
+                );
+              }
+              if (isCompact) {
+                return (
+                  <td key={i} className="num fluxo-stacked">
+                    <div className="fluxo-stacked-val" style={{ color: heatColor(total, receitaMesArr, true) }}>{B.fmt(total)}</div>
+                    <div className="fluxo-stacked-pct">{pctLabel}</div>
+                  </td>
+                );
+              }
+              // heatmap
+              return (
+                <td key={i} className="num green" style={{ background: heatBg(total, receitaMesArr, true), fontWeight: 600 }}>{B.fmt(total)}</td>
+              );
+            })}
+          </tr>
+
+          {/* Linhas de Receita */}
+          {B.FLUXO_RECEITA.map(row => (
+            <tr key={row.cat}>
+              <td><span className="chev">+</span>{row.cat}</td>
+              {months6.map((_, i) => {
+                const v = row.values[i] || 0;
+                const pctLabel = cellPct(v, row.values, i, true);
+                if (isClassic) {
+                  return (
+                    <React.Fragment key={i}>
+                      <td className="num green">{B.fmt(v)}</td>
+                      <td className="num" style={{ color: "var(--fg-3)" }}>{pctLabel}</td>
+                    </React.Fragment>
+                  );
+                }
+                if (isCompact) {
+                  return (
+                    <td key={i} className="num fluxo-stacked">
+                      <div className="fluxo-stacked-val" style={{ color: heatColor(v, row.values, true) }}>{B.fmt(v)}</div>
+                      <div className="fluxo-stacked-pct">{pctLabel}</div>
+                    </td>
+                  );
+                }
+                return (
+                  <td key={i} className="num green" style={{ background: heatBg(v, row.values, true) }}>{B.fmt(v)}</td>
+                );
+              })}
+            </tr>
+          ))}
+
+          {/* Seção: Despesa */}
+          <tr className="section">
+            <td>Despesa</td>
+            {months6.map((_, i) => {
+              const totalDespesa = despesaMesArr[i];
+              let pctLabel, pctColor = "var(--fg-3)";
+              if (view === "vertical") {
+                const totalReceitaMes = receitaMesArr[i];
+                pctLabel = totalReceitaMes ? ((totalDespesa / totalReceitaMes) * 100).toFixed(2).replace(".", ",") + "%" : "—";
+                pctColor = totalDespesa > totalReceitaMes ? "var(--red)" : "var(--fg-3)";
+              } else {
+                pctLabel = totalAnoDespesa ? ((totalDespesa / totalAnoDespesa) * 100).toFixed(1).replace(".", ",") + "%" : "—";
+              }
+              if (isClassic) {
+                return (
+                  <React.Fragment key={i}>
+                    <td className="num red">{B.fmt(totalDespesa)}</td>
+                    <td className="num" style={{ color: pctColor, fontWeight: view === "horizontal" ? 600 : 400 }}>{pctLabel}</td>
+                  </React.Fragment>
+                );
+              }
+              if (isCompact) {
+                return (
+                  <td key={i} className="num fluxo-stacked">
+                    <div className="fluxo-stacked-val" style={{ color: heatColor(totalDespesa, despesaMesArr, false) }}>{B.fmt(totalDespesa)}</div>
+                    <div className="fluxo-stacked-pct" style={{ color: pctColor }}>{pctLabel}</div>
+                  </td>
+                );
+              }
+              return (
+                <td key={i} className="num red" style={{ background: heatBg(totalDespesa, despesaMesArr, false), fontWeight: 600 }}>{B.fmt(totalDespesa)}</td>
+              );
+            })}
+          </tr>
+
+          {/* Linhas de Despesa */}
+          {B.FLUXO_DESPESA.map(row => (
+            <tr key={row.cat}>
+              <td><span className="chev">+</span>{row.cat}</td>
+              {months6.map((_, i) => {
+                const v = row.values[i] || 0;
+                const pctLabel = cellPct(v, row.values, i, false);
+                if (isClassic) {
+                  return (
+                    <React.Fragment key={i}>
+                      <td className="num red">{B.fmt(v)}</td>
+                      <td className="num" style={{ color: "var(--fg-3)" }}>{pctLabel}</td>
+                    </React.Fragment>
+                  );
+                }
+                if (isCompact) {
+                  return (
+                    <td key={i} className="num fluxo-stacked">
+                      <div className="fluxo-stacked-val" style={{ color: heatColor(v, row.values, false) }}>{B.fmt(v)}</div>
+                      <div className="fluxo-stacked-pct">{pctLabel}</div>
+                    </td>
+                  );
+                }
+                return (
+                  <td key={i} className="num red" style={{ background: heatBg(v, row.values, false) }}>{B.fmt(v)}</td>
+                );
+              })}
+            </tr>
+          ))}
+
+          {/* Total Líquido */}
+          <tr className="total">
+            <td>Total Líquido</td>
+            {months6.map((_, i) => {
+              const r = receitaMesArr[i];
+              const d = despesaMesArr[i];
+              const liq = r + d; // despesa já é negativa
+              let pctLabel;
+              const pctColor = liq >= 0 ? "var(--green)" : "var(--red)";
+              if (view === "vertical") {
+                pctLabel = r ? ((liq / r) * 100).toFixed(2).replace(".", ",") + "%" : "—";
+              } else {
+                const liqAno = totalAnoReceita + totalAnoDespesa;
+                pctLabel = liqAno ? ((liq / liqAno) * 100).toFixed(1).replace(".", ",") + "%" : "—";
+              }
+              const valColor = liq >= 0 ? "var(--green)" : "var(--red)";
+              if (isClassic) {
+                return (
+                  <React.Fragment key={i}>
+                    <td className="num" style={{ color: valColor }}>{B.fmt(liq)}</td>
+                    <td className="num" style={{ color: pctColor, fontWeight: 600 }}>{pctLabel}</td>
+                  </React.Fragment>
+                );
+              }
+              if (isCompact) {
+                return (
+                  <td key={i} className="num fluxo-stacked">
+                    <div className="fluxo-stacked-val" style={{ color: valColor }}>{B.fmt(liq)}</div>
+                    <div className="fluxo-stacked-pct" style={{ color: pctColor, fontWeight: 600 }}>{pctLabel}</div>
+                  </td>
+                );
+              }
+              // heatmap: total não recebe bg (linha já é destacada pelo .total)
+              return (
+                <td key={i} className="num" style={{ color: valColor, fontWeight: 700 }}>{B.fmt(liq)}</td>
+              );
+            })}
+          </tr>
+        </tbody>
+      </table>
+    );
+  };
+
+  const DivergingBarsCard = (
+    <div className="card">
+      <h2 className="card-title">Valor líquido por mês</h2>
+      <DivergingBars values={B.VALOR_LIQ_SERIES} labels={B.MONTHS.map(m => m.charAt(0).toUpperCase() + m.slice(1))} />
+    </div>
+  );
 
   return (
     <div className="page">
@@ -61,182 +339,17 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
         </div>
       </div>
 
-      <div className="row" style={{ gridTemplateColumns: "minmax(220px, 1fr) minmax(0, 4fr)" }}>
-        <div className="card">
-          <h2 className="card-title">Valor líquido por mês</h2>
-          <DivergingBars values={B.VALOR_LIQ_SERIES} labels={B.MONTHS.map(m => m.charAt(0).toUpperCase() + m.slice(1))} />
-        </div>
-
-        <div className="card">
-          <div className="card-title-row">
-            <h2 className="card-title">Fluxo de caixa</h2>
-            <div className="seg">
-              <button className={view === "horizontal" ? "active" : ""} onClick={() => setView("horizontal")}>Análise horizontal</button>
-              <button className={view === "vertical" ? "active" : ""} onClick={() => setView("vertical")}>Análise vertical</button>
-            </div>
-          </div>
-          <div className="status-line" style={{ marginBottom: 8, fontSize: 11 }}>
-            {view === "vertical"
-              ? "Vertical: todas as linhas (receita e despesa) como % da receita do mês"
-              : "Horizontal: cada mês como % do total anual da linha"}
-          </div>
-          <div className="t-scroll" style={{ maxHeight: 320 }}>
-            <table className="t">
-              <thead>
-                <tr>
-                  <th style={{ minWidth: 200 }}>Receita / Despesa</th>
-                  {months6.map((m, i) => {
-                    const isActive = i === activeMonthIdx;
-                    return (
-                      <React.Fragment key={m}>
-                        <th className={`num clickable-th ${isActive ? "active" : ""}`}
-                            onClick={() => handleMonthHeader(i)}
-                            style={{ cursor: "pointer" }}
-                            title="Clique para filtrar este mês">
-                          {m}
-                        </th>
-                        <th className="num">{view === "horizontal" ? "Δ%" : "%"}</th>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {/* Pre-calcula totais usados nas duas análises */}
-                {(() => null)()}
-                <tr className="section">
-                  <td>Receita</td>
-                  {months6.map((_, i) => {
-                    const total = B.FLUXO_RECEITA.reduce((s, r) => s + (r.values[i] || 0), 0);
-                    let pctLabel = "100%";
-                    let pctColor = "var(--fg-3)";
-                    if (view === "horizontal") {
-                      // Total ANUAL da seção Receita (soma todos os meses)
-                      const totalAno = B.FLUXO_RECEITA.reduce((s, r) => s + r.values.reduce((a, b) => a + (b || 0), 0), 0);
-                      pctLabel = totalAno ? ((total / totalAno) * 100).toFixed(1).replace(".", ",") + "%" : "—";
-                    } else {
-                      // Vertical: receita do mês = 100% da base
-                      pctLabel = "100%";
-                    }
-                    return (
-                      <React.Fragment key={i}>
-                        <td className="num green">{B.fmt(total)}</td>
-                        <td className="num" style={{ color: pctColor, fontWeight: view === "horizontal" ? 600 : 400 }}>{pctLabel}</td>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
-                {B.FLUXO_RECEITA.map(row => (
-                  <tr key={row.cat}>
-                    <td><span className="chev">+</span>{row.cat}</td>
-                    {months6.map((_, i) => {
-                      const v = row.values[i] || 0;
-                      let pctLabel = "0,00%";
-                      let pctColor = "var(--fg-3)";
-                      if (view === "vertical") {
-                        // % da receita do mês (linha como fração da receita do mês)
-                        const totalReceitaMes = B.FLUXO_RECEITA.reduce((s, r) => s + (r.values[i] || 0), 0);
-                        const pct = totalReceitaMes ? (v / totalReceitaMes) * 100 : 0;
-                        pctLabel = pct.toFixed(2).replace(".", ",") + "%";
-                      } else {
-                        // Horizontal: % do total anual desta linha
-                        const totalAnoLinha = row.values.reduce((s, x) => s + (x || 0), 0);
-                        pctLabel = totalAnoLinha ? ((v / totalAnoLinha) * 100).toFixed(1).replace(".", ",") + "%" : "—";
-                      }
-                      return (
-                        <React.Fragment key={i}>
-                          <td className="num green">{B.fmt(v)}</td>
-                          <td className="num" style={{ color: pctColor }}>{pctLabel}</td>
-                        </React.Fragment>
-                      );
-                    })}
-                  </tr>
-                ))}
-                <tr className="section">
-                  <td>Despesa</td>
-                  {months6.map((_, i) => {
-                    const totalDespesa = B.FLUXO_DESPESA.reduce((s, r) => s + (r.values[i] || 0), 0);
-                    let pctLabel = "—";
-                    let pctColor = "var(--fg-3)";
-                    if (view === "vertical") {
-                      // Despesa total do mês como % da receita do mês
-                      const totalReceitaMes = B.FLUXO_RECEITA.reduce((s, r) => s + (r.values[i] || 0), 0);
-                      pctLabel = totalReceitaMes ? ((totalDespesa / totalReceitaMes) * 100).toFixed(2).replace(".", ",") + "%" : "—";
-                      pctColor = totalDespesa > totalReceitaMes ? "var(--red)" : "var(--fg-3)";
-                    } else {
-                      // Horizontal: % do total anual da seção Despesa
-                      const totalAnoDesp = B.FLUXO_DESPESA.reduce((s, r) => s + r.values.reduce((a, b) => a + (b || 0), 0), 0);
-                      pctLabel = totalAnoDesp ? ((totalDespesa / totalAnoDesp) * 100).toFixed(1).replace(".", ",") + "%" : "—";
-                    }
-                    return (
-                      <React.Fragment key={i}>
-                        <td className="num red">{B.fmt(totalDespesa)}</td>
-                        <td className="num" style={{ color: pctColor, fontWeight: view === "horizontal" ? 600 : 400 }}>{pctLabel}</td>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
-                {B.FLUXO_DESPESA.map(row => (
-                  <tr key={row.cat}>
-                    <td><span className="chev">+</span>{row.cat}</td>
-                    {months6.map((_, i) => {
-                      const v = row.values[i] || 0;
-                      let pctLabel = "0,00%";
-                      let pctColor = "var(--fg-3)";
-                      if (view === "vertical") {
-                        // Despesa categoria como % da RECEITA do mês (não da despesa)
-                        const totalReceitaMes = B.FLUXO_RECEITA.reduce((s, r) => s + (r.values[i] || 0), 0);
-                        const pct = totalReceitaMes ? (v / totalReceitaMes) * 100 : 0;
-                        pctLabel = pct.toFixed(2).replace(".", ",") + "%";
-                      } else {
-                        // Horizontal: % do total anual desta linha de despesa
-                        const totalAnoLinha = row.values.reduce((s, x) => s + (x || 0), 0);
-                        pctLabel = totalAnoLinha ? ((v / totalAnoLinha) * 100).toFixed(1).replace(".", ",") + "%" : "—";
-                      }
-                      return (
-                        <React.Fragment key={i}>
-                          <td className="num red">{B.fmt(v)}</td>
-                          <td className="num" style={{ color: pctColor }}>{pctLabel}</td>
-                        </React.Fragment>
-                      );
-                    })}
-                  </tr>
-                ))}
-                <tr className="total">
-                  <td>Total Líquido</td>
-                  {months6.map((_, i) => {
-                    const r = B.FLUXO_RECEITA.reduce((s, r) => s + (r.values[i] || 0), 0);
-                    const d = B.FLUXO_DESPESA.reduce((s, r) => s + (r.values[i] || 0), 0);
-                    const liq = r - d;
-                    let pctLabel = "—";
-                    let pctColor = liq >= 0 ? "var(--green)" : "var(--red)";
-                    if (view === "vertical") {
-                      // Margem líquida: liq / receita do mês
-                      pctLabel = r ? ((liq / r) * 100).toFixed(2).replace(".", ",") + "%" : "—";
-                    } else {
-                      // Horizontal: cada mês como % do total liquido anual
-                      const liqAno = B.FLUXO_RECEITA.reduce((s, rr) => s + rr.values.reduce((a, b) => a + (b || 0), 0), 0)
-                                   - B.FLUXO_DESPESA.reduce((s, rr) => s + rr.values.reduce((a, b) => a + (b || 0), 0), 0);
-                      pctLabel = liqAno ? ((liq / liqAno) * 100).toFixed(1).replace(".", ",") + "%" : "—";
-                    }
-                    return (
-                      <React.Fragment key={i}>
-                        <td className="num" style={{ color: liq >= 0 ? "var(--green)" : "var(--red)" }}>{B.fmt(liq)}</td>
-                        <td className="num" style={{ color: pctColor, fontWeight: 600 }}>{pctLabel}</td>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
-          </div>
+      <div className="card">
+        <FluxoCardHeader />
+        <div className="t-scroll fluxo-scroll-tall">
+          <div className="fluxo-sticky-wrap">{renderTable("compact")}</div>
         </div>
       </div>
 
       <div className="card">
         <h2 className="card-title">Saldos acumulados por mês</h2>
         <TrendChart
-          values={B.SALDOS_MES}
+          values={saldosCum}
           labels={B.MONTHS.map(m => m.charAt(0).toUpperCase() + m.slice(1) + " " + String((B.META && B.META.ref_year) || "").slice(-2))}
           color="var(--cyan)"
           height={isMobile ? 200 : 300}
@@ -244,6 +357,8 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
           gradientId="fl-saldos"
         />
       </div>
+
+      {DivergingBarsCard}
     </div>
   );
 };
