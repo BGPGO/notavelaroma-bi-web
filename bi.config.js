@@ -2,7 +2,7 @@ module.exports = {
   cliente: {
     nome: "Notável Aroma",
     subdomain: "notavelaroma-bi",
-    coolify_app_uuid: "",
+    coolify_app_uuid: "twxsuoxib648jndpk2soy5on",
     cor_primaria: "#6B4226",
   },
   fontes: {
