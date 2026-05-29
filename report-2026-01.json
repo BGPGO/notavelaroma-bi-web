@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-05-29T00:00:00.000Z",
+  "empresa": "Notável Aroma",
+  "periodo": "Janeiro/2026",
+  "year": 2026,
+  "month": 1,
+  "filter": "realizado",
+  "secoes": {
+    "visao_geral": {
+      "title": "Visão Geral",
+      "analysis": "A Notável Aroma encerrou janeiro de 2026 com receita total de R$ 174.775,46 e despesas de R$ 145.084,72, gerando um resultado líquido de caixa positivo de R$ 29.690,74, equivalente a uma margem líquida de 16,99%. O resultado operacional pelo regime DRE ficou em R$ 33.235,97, com receita operacional de R$ 124.722,78, custos de R$ 106.018,95 e despesas operacionais de R$ 14.532,14 positivos (ajustes e reversões). A Shopee liderou como principal canal de vendas com R$ 87.757,87, seguida por Shein com R$ 26.038,70.\n\nO mês de abertura do ano apresenta uma base sólida, mas a concentração de receita na Shopee (acima de 50% do total) representa um risco relevante de dependência de canal. Recomenda-se intensificar a diversificação para Mercado Livre e Amazon, que juntos representaram apenas R$ 7.653,66. A margem operacional demonstra que a empresa consegue cobrir seus custos com folga, porém é prudente monitorar os custos com matéria-prima (R$ 59.220,85) e mercadorias (R$ 34.824,50), que juntos consomem parcela significativa do faturamento.",
+      "error": null
+    },
+    "receita": {
+      "title": "Receita",
+      "analysis": "A receita total de janeiro atingiu R$ 174.775,46, composta majoritariamente por repasses de vendas no valor de R$ 121.450,23, salários e encargos recebidos de R$ 31.647,58, pró-labores de R$ 14.000,00 e bonificações de R$ 4.208,00. A receita direta com vendas somou R$ 3.208,12 e os rendimentos de investimentos contribuíram com R$ 197,10. Os cinco principais clientes foram Shopee (R$ 87.757,87), ajustes de reconciliação (R$ 49.855,58), Shein (R$ 26.038,70), Mercado Livre (R$ 5.000,00) e Amazon (R$ 2.653,66).\n\nA estrutura de receita revela forte dependência dos marketplaces, com a Shopee respondendo por metade do faturamento total. A presença de ajustes de reconciliação como segundo maior item (R$ 49.855,58) merece atenção especial, pois pode indicar defasagens no processo de conciliação financeira. Recomenda-se revisar os procedimentos de conciliação para garantir transparência e buscar ampliar a participação de canais alternativos como TikTok Shop, ainda ausente neste mês.",
+      "error": null
+    },
+    "despesa": {
+      "title": "Despesa",
+      "analysis": "As despesas totais em janeiro somaram R$ 145.084,72, lideradas por compra de matéria-prima (R$ 59.220,85), compra de mercadorias (R$ 34.824,50), gastos com ADS (R$ 11.220,00) e insumos para expedição (R$ 10.271,88). Salários e encargos representaram R$ 8.030,93, e a aquisição de ativo imobilizado totalizou R$ 3.742,33. Os principais fornecedores foram ajustes de reconciliação (R$ 19.680,50), Ginger Fragrances (R$ 18.004,50), Florae (R$ 12.099,00), Shopee (R$ 11.220,00) e Prime Box Embalagens (R$ 8.970,78).\n\nOs custos com matéria-prima e mercadorias somados representam R$ 94.045,35, equivalente a quase 65% das despesas totais, o que é típico de uma empresa do setor de fragrâncias, mas exige monitoramento constante de preços junto aos fornecedores. Os gastos com publicidade digital (ADS) de R$ 11.220,00 devem ser avaliados em termos de retorno sobre investimento. Sugere-se negociar condições de pagamento mais favoráveis com os principais fornecedores de insumos químicos para melhorar o capital de giro.",
+      "error": null
+    },
+    "fluxo_caixa": {
+      "title": "Fluxo de Caixa",
+      "analysis": "O fluxo de caixa de janeiro apresentou entradas de R$ 174.775,46 contra saídas de R$ 145.084,72, resultando em um saldo líquido positivo de R$ 29.690,74. A margem líquida de caixa ficou em 16,99%, indicando que a empresa gerou caixa operacional suficiente para cobrir todas as obrigações do mês. Não houve valores registrados a pagar ou a receber pendentes para este período, sugerindo que todas as transações foram liquidadas dentro do mês.\n\nO resultado positivo do fluxo de caixa é encorajador como ponto de partida para o ano, mas a ausência de provisões a pagar/receber pode indicar que janeiro concentrou pagamentos e recebimentos à vista. É fundamental que a empresa mantenha reservas de caixa adequadas para os meses seguintes, especialmente considerando possíveis sazonalidades no setor de fragrâncias. Recomenda-se constituir um fundo de reserva equivalente a pelo menos dois meses de despesas fixas.",
+      "error": null
+    },
+    "tesouraria": {
+      "title": "Tesouraria",
+      "analysis": "A tesouraria da Notável Aroma em janeiro registrou movimentação total de R$ 319.860,18 entre entradas e saídas, com saldo líquido positivo de R$ 29.690,74. Os rendimentos de investimentos foram modestos em R$ 197,10, sinalizando que a empresa mantém posição conservadora em aplicações financeiras. A ausência de operações de empréstimo ou financiamento neste mês indica que a operação foi inteiramente autofinanciada.\n\nA posição de tesouraria é saudável, porém os rendimentos financeiros poderiam ser otimizados. Com geração de caixa positiva, há oportunidade de direcionar parte do excedente para aplicações de curto prazo com melhor rentabilidade. A empresa deve estruturar uma política formal de tesouraria que defina limites mínimos de caixa operacional e metas de aplicação financeira para maximizar o retorno sobre o capital disponível.",
+      "error": null
+    },
+    "comparativo": {
+      "title": "Comparativo",
+      "analysis": "Janeiro de 2026 estabelece a linha de base para o ano fiscal da Notável Aroma, com receita de R$ 174.775,46, despesas de R$ 145.084,72 e resultado líquido de R$ 29.690,74. O resultado operacional DRE de R$ 33.235,97 indica que a operação central da empresa é lucrativa, com margem líquida de caixa de 16,99%. Como primeiro mês do período, ainda não há base comparativa interna para 2026.\n\nOs indicadores de janeiro devem ser utilizados como referência para avaliar a evolução mensal ao longo do ano. Metas recomendadas para os próximos meses incluem crescimento de receita de pelo menos 10% ao mês, manutenção da margem líquida acima de 15% e diversificação da base de clientes para reduzir a concentração na Shopee. O acompanhamento rigoroso desses indicadores permitirá identificar tendências e ajustar a estratégia comercial de forma proativa.",
+      "error": null
+    }
+  },
+  "conclusao": "A Notável Aroma iniciou 2026 com desempenho positivo, gerando R$ 29.690,74 de caixa líquido e margem de 16,99%. A empresa demonstra capacidade operacional sólida no segmento de fragrâncias, mas precisa endereçar a concentração de receita na Shopee e otimizar a gestão de fornecedores de matéria-prima para sustentar o crescimento ao longo do ano."
+}

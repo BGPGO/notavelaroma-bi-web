@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-05-29T00:00:00.000Z",
+  "empresa": "Notável Aroma",
+  "periodo": "Fevereiro/2026",
+  "year": 2026,
+  "month": 2,
+  "filter": "realizado",
+  "secoes": {
+    "visao_geral": {
+      "title": "Visão Geral",
+      "analysis": "Fevereiro de 2026 apresentou um salto expressivo na receita total, que atingiu R$ 309.770,29, alta de 77% em relação a janeiro (R$ 174.775,46). As despesas acompanharam o crescimento e totalizaram R$ 225.673,43, resultando em saldo líquido de caixa de R$ 84.096,86 e margem líquida de 27,15%. Contudo, o resultado operacional DRE foi negativo em R$ 11.214,50, revelando que o crescimento de receita bruta foi impulsionado por obtenção de empréstimo de R$ 110.000,00, que não compõe a receita operacional.\n\nA divergência entre o fluxo de caixa positivo e o resultado operacional negativo é um ponto de alerta crítico. A empresa captou R$ 110.000,00 em empréstimo que inflou as entradas de caixa, mas operacionalmente a despesa total superou a receita recorrente. Recomenda-se separar claramente receitas financeiras e operacionais no acompanhamento gerencial e garantir que o empréstimo seja direcionado para investimentos que gerem retorno superior ao custo do capital.",
+      "error": null
+    },
+    "receita": {
+      "title": "Receita",
+      "analysis": "A receita total de fevereiro alcançou R$ 309.770,29, sendo R$ 183.772,19 de repasses de vendas, R$ 110.000,00 de obtenção de empréstimo, R$ 9.989,88 de outras receitas não-DRE e R$ 2.375,69 de receita direta com vendas. Os principais clientes foram Shopee (R$ 141.076,87), Ornata Domus (R$ 119.225,65), Shein (R$ 31.165,94), Mercado Livre (R$ 6.500,00) e Amazon (R$ 5.029,38). A receita operacional DRE ficou em R$ 197.215,78.\n\nO crescimento das vendas via Shopee de R$ 87.757,87 para R$ 141.076,87 (aumento de 61%) é notável e indica forte tração comercial no marketplace. A entrada da Ornata Domus como segundo maior cliente com R$ 119.225,65 traz diversificação importante, porém deve-se avaliar se esse fluxo é recorrente ou pontual. A Shein também apresentou crescimento de 20%, consolidando-se como terceiro canal relevante. Recomenda-se fortalecer a presença em todos os canais e monitorar a sustentabilidade do volume de vendas alcançado.",
+      "error": null
+    },
+    "despesa": {
+      "title": "Despesa",
+      "analysis": "As despesas totais de fevereiro somaram R$ 225.673,43, com destaque para compra de matéria-prima (R$ 114.605,94, quase o dobro de janeiro), compra de mercadorias (R$ 17.241,00), ADS (R$ 13.800,00), despesas administrativas (R$ 13.438,23) e pagamento de empréstimo (R$ 10.000,00). Os principais fornecedores foram Etil (R$ 31.845,00), Ornata Domus (R$ 26.157,97), Ginger Fragrances (R$ 24.114,11) e Symrise (R$ 19.709,79).\n\nO salto nos custos com matéria-prima de R$ 59.220,85 para R$ 114.605,94 indica forte investimento em produção, possivelmente antecipando demanda futura. As despesas administrativas de R$ 13.438,23 representam um item novo relevante que deve ser detalhado. O pagamento de R$ 10.000,00 de empréstimo contra a captação de R$ 110.000,00 mostra que a empresa está em fase de alavancagem. É essencial garantir que os gastos com ADS (R$ 13.800,00, alta de 23%) estejam gerando conversão proporcional e acompanhar de perto o ROAS de cada canal.",
+      "error": null
+    },
+    "fluxo_caixa": {
+      "title": "Fluxo de Caixa",
+      "analysis": "O fluxo de caixa de fevereiro registrou entradas de R$ 309.770,29 e saídas de R$ 225.673,43, gerando saldo positivo de R$ 84.096,86 com margem de 27,15%. Este foi o melhor resultado de caixa do período analisado, representando quase o triplo do saldo de janeiro (R$ 29.690,74). Não há valores pendentes a pagar ou receber registrados para o período.\n\nEmbora o saldo de caixa seja robusto, é fundamental reconhecer que R$ 110.000,00 das entradas correspondem a empréstimo, ou seja, capital de terceiros que gera obrigação futura. O fluxo operacional puro (excluindo o empréstimo) seria de aproximadamente R$ -25.903,14, o que configura uma queima de caixa operacional. A empresa deve projetar o cronograma de pagamento do empréstimo e assegurar que a geração de caixa operacional dos próximos meses seja suficiente para honrar as parcelas sem comprometer o capital de giro.",
+      "error": null
+    },
+    "tesouraria": {
+      "title": "Tesouraria",
+      "analysis": "A tesouraria de fevereiro movimentou R$ 535.443,72 entre entradas e saídas, com destaque para a captação de empréstimo de R$ 110.000,00 e pagamento de parcela de R$ 10.000,00. Os rendimentos de investimentos dobraram para R$ 386,86 em comparação a janeiro (R$ 197,10), sinalizando maior alocação de recursos em aplicações financeiras. A venda de ativo imobilizado gerou R$ 1.917,65 adicionais.\n\nA operação de crédito de R$ 110.000,00 alterou significativamente a estrutura de capital da empresa. Com início de pagamento imediato de R$ 10.000,00, estima-se um compromisso financeiro relevante nos próximos meses. A tesouraria deve priorizar a formação de reservas para cobertura das parcelas futuras e evitar nova alavancagem antes de estabilizar o fluxo operacional. A venda de ativos imobilizados pode indicar reestruturação de ativos ociosos, o que é positivo se reinvestido em operações de maior retorno.",
+      "error": null
+    },
+    "comparativo": {
+      "title": "Comparativo",
+      "analysis": "Comparando fevereiro com janeiro, a receita total cresceu 77% (de R$ 174.775,46 para R$ 309.770,29), as despesas subiram 56% (de R$ 145.084,72 para R$ 225.673,43) e o saldo líquido de caixa saltou 183% (de R$ 29.690,74 para R$ 84.096,86). A margem líquida subiu de 16,99% para 27,15%. Contudo, o resultado operacional DRE inverteu-se de positivo (R$ 33.235,97) para negativo (R$ -11.214,50), evidenciando que o crescimento foi financiado por capital de terceiros.\n\nA evolução mês a mês revela uma empresa em aceleração de vendas, com a Shopee crescendo 61% e a Shein 20%. Porém, a deterioração do resultado operacional é preocupante e requer atenção imediata ao controle de custos. O custo com matéria-prima praticamente dobrou, exigindo revisão da política de compras e negociação com fornecedores. A meta para março deve ser restaurar o resultado operacional positivo enquanto mantém o ritmo de crescimento de vendas.",
+      "error": null
+    }
+  },
+  "conclusao": "Fevereiro trouxe crescimento expressivo de receita bruta para R$ 309.770,29 com saldo de caixa positivo de R$ 84.096,86, porém o resultado operacional foi negativo em R$ 11.214,50, mascarado pela captação de empréstimo de R$ 110.000,00. A Notável Aroma precisa urgentemente equilibrar o crescimento de vendas com controle rigoroso de custos operacionais, especialmente matéria-prima, para garantir sustentabilidade financeira."
+}

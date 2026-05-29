@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-05-29T00:00:00.000Z",
+  "empresa": "Notável Aroma",
+  "periodo": "Março/2026",
+  "year": 2026,
+  "month": 3,
+  "filter": "realizado",
+  "secoes": {
+    "visao_geral": {
+      "title": "Visão Geral",
+      "analysis": "Março de 2026 registrou receita total de R$ 281.333,88 e despesas de R$ 218.207,25, resultando em saldo líquido de caixa de R$ 63.126,63 com margem de 22,44%. O resultado operacional DRE foi de R$ 91.845,42, composto por receita operacional de R$ 272.840,91, custos de R$ 125.859,73 e despesas de R$ 55.135,76. Este foi o melhor resultado operacional dos cinco meses analisados, demonstrando recuperação significativa em relação ao negativo de fevereiro.\n\nA reversão do resultado operacional de R$ -11.214,50 em fevereiro para R$ 91.845,42 em março indica que a empresa conseguiu converter o investimento em matéria-prima dos meses anteriores em vendas efetivas. A Shopee atingiu R$ 188.417,68, seu melhor desempenho no período, e a receita com outras fontes (R$ 20.000,01) complementou a composição. Recomenda-se capitalizar este momento positivo para acelerar o pagamento do empréstimo e fortalecer as reservas de caixa.",
+      "error": null
+    },
+    "receita": {
+      "title": "Receita",
+      "analysis": "A receita total de março foi de R$ 281.333,88, liderada por repasses de vendas de R$ 248.883,54, seguidos por outras receitas de R$ 20.000,01, venda de ativo imobilizado de R$ 8.011,25, receita com vendas de R$ 2.407,36 e rendimentos de investimentos de R$ 481,72. Os principais clientes foram Shopee (R$ 188.417,68), Shein (R$ 41.243,85), ajustes de reconciliação (R$ 28.011,25), Mercado Livre (R$ 14.000,00) e Amazon (R$ 4.346,62).\n\nO desempenho da Shopee atingiu seu pico com R$ 188.417,68, crescimento de 34% sobre fevereiro. A Shein também avançou 32% para R$ 41.243,85, consolidando-se como segundo canal mais relevante. O Mercado Livre mais que dobrou de R$ 6.500,00 para R$ 14.000,00, sinalizando ganho de tração. A venda de ativo imobilizado de R$ 8.011,25 sugere continuidade da estratégia de desinvestimento em ativos não essenciais. Recomenda-se manter o investimento nos canais em crescimento e avaliar a entrada em novos marketplaces.",
+      "error": null
+    },
+    "despesa": {
+      "title": "Despesa",
+      "analysis": "As despesas de março totalizaram R$ 218.207,25, com matéria-prima em R$ 97.943,19 (queda de 15% em relação a fevereiro), pagamento de empréstimo em R$ 25.498,75, ADS em R$ 17.800,00, insumos para expedição em R$ 12.995,98, ativo imobilizado em R$ 11.713,01 e salários em R$ 10.768,00. Os principais fornecedores foram Ornata Domus (R$ 38.336,23), CLK Plásticos (R$ 19.055,92), Symrise (R$ 17.928,30) e Shopee/ADS (R$ 17.800,00).\n\nA redução nos custos de matéria-prima para R$ 97.943,19 é positiva e pode refletir utilização de estoques acumulados em fevereiro. O pagamento de empréstimo de R$ 25.498,75 é significativamente maior que os R$ 10.000,00 de fevereiro, o que indica aceleração na amortização da dívida, estratégia recomendável dado o bom resultado operacional do mês. Os gastos com ADS subiram para R$ 17.800,00 (aumento de 29%), exigindo análise detalhada do retorno por canal para garantir eficiência do investimento em marketing digital.",
+      "error": null
+    },
+    "fluxo_caixa": {
+      "title": "Fluxo de Caixa",
+      "analysis": "O fluxo de caixa de março registrou entradas de R$ 281.333,88 e saídas de R$ 218.207,25, gerando saldo positivo de R$ 63.126,63 com margem de 22,44%. Embora inferior ao saldo de fevereiro (R$ 84.096,86), março não contou com captação de empréstimo, tornando este resultado integralmente operacional e portanto mais saudável. Não há valores pendentes a pagar ou a receber registrados.\n\nA geração de caixa operacional pura de R$ 63.126,63 demonstra que a Notável Aroma possui capacidade de autofinanciamento quando o volume de vendas atinge o patamar de R$ 280 mil mensais. Este nível de geração de caixa permite absorver o pagamento de empréstimos (R$ 25.498,75 neste mês) e ainda gerar excedente. A empresa deve estabelecer este patamar como meta mínima mensal de receita e trabalhar para que o fluxo operacional cubra integralmente as obrigações financeiras sem necessidade de nova alavancagem.",
+      "error": null
+    },
+    "tesouraria": {
+      "title": "Tesouraria",
+      "analysis": "A tesouraria de março movimentou R$ 499.541,13 no total, com destaque para o pagamento de empréstimo de R$ 25.498,75 que reduziu o saldo devedor da captação de fevereiro. Os rendimentos de investimentos cresceram para R$ 481,72 (alta de 25% sobre fevereiro), e a venda de ativo imobilizado gerou R$ 8.011,25. A posição líquida da tesouraria permanece positiva com folga para honrar compromissos de curto prazo.\n\nA aceleração no pagamento do empréstimo é uma decisão financeira prudente que reduz o custo total da dívida. Com R$ 35.498,75 já amortizados (R$ 10.000,00 em fevereiro mais R$ 25.498,75 em março) sobre o total de R$ 110.000,00, restam aproximadamente R$ 74.501,25 a quitar. Os rendimentos financeiros crescentes sugerem melhor gestão do caixa disponível. Recomenda-se manter o ritmo de amortização e avaliar oportunidades de renegociação de taxas caso as condições de mercado sejam favoráveis.",
+      "error": null
+    },
+    "comparativo": {
+      "title": "Comparativo",
+      "analysis": "Março consolidou a recuperação operacional da Notável Aroma com resultado DRE de R$ 91.845,42, contra R$ -11.214,50 de fevereiro e R$ 33.235,97 de janeiro. A receita total recuou 9% em relação a fevereiro (de R$ 309.770,29 para R$ 281.333,88), mas sem o efeito do empréstimo de fevereiro, a receita operacional cresceu 38% (de R$ 197.215,78 para R$ 272.840,91). A margem de caixa ficou em 22,44%, intermediária entre janeiro (16,99%) e fevereiro (27,15%).\n\nA tendência de três meses mostra estabilização da operação em patamar de receita entre R$ 250 mil e R$ 310 mil mensais. O custo de matéria-prima encontra-se em trajetória de normalização após o pico de fevereiro. Os gastos com ADS mantêm tendência de alta (R$ 11.220 em janeiro, R$ 13.800 em fevereiro, R$ 17.800 em março), o que exige validação de eficácia. Para abril, projeta-se manutenção do patamar de vendas com foco em otimização de custos para sustentar a margem operacional alcançada.",
+      "error": null
+    }
+  },
+  "conclusao": "Março foi o mês de melhor resultado operacional para a Notável Aroma em 2026, com R$ 91.845,42 no DRE e geração de caixa de R$ 63.126,63 integralmente operacional. A empresa demonstrou capacidade de converter investimentos anteriores em vendas efetivas e acelerou a amortização do empréstimo. O desafio agora é sustentar este patamar nos próximos meses enquanto controla a escalada dos gastos com marketing e matéria-prima."
+}

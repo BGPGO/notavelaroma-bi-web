@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-05-29T00:00:00.000Z",
+  "empresa": "Notável Aroma",
+  "periodo": "Abril/2026",
+  "year": 2026,
+  "month": 4,
+  "filter": "realizado",
+  "secoes": {
+    "visao_geral": {
+      "title": "Visão Geral",
+      "analysis": "Abril de 2026 representou uma reversão preocupante para a Notável Aroma, com receita total de R$ 237.024,94 e despesas de R$ 292.580,54, gerando saldo líquido negativo de R$ -55.555,60 e margem de -23,44%. O resultado operacional DRE também foi negativo em R$ -52.554,90, com receita operacional de R$ 234.802,77, custos de R$ 216.747,59 e despesas de R$ 70.610,08. Esta foi a pior performance do período analisado, queimando o caixa acumulado nos meses anteriores.\n\nO déficit de R$ 55.555,60 no caixa é um sinal de alerta grave que exige ação imediata. A receita caiu 16% em relação a março (de R$ 281.333,88 para R$ 237.024,94), enquanto as despesas subiram 34% (de R$ 218.207,25 para R$ 292.580,54), criando um efeito tesoura devastador. A empresa precisa revisar urgentemente sua estrutura de custos, especialmente a compra de matéria-prima que saltou para R$ 171.010,65, o maior valor do período. Recomenda-se suspender investimentos não essenciais e focar na conversão do estoque acumulado em vendas nos próximos meses.",
+      "error": null
+    },
+    "receita": {
+      "title": "Receita",
+      "analysis": "A receita de abril totalizou R$ 237.024,94, composta por repasses de vendas de R$ 225.809,06, outras receitas não-DRE de R$ 5.618,54, receita com vendas de R$ 3.097,59, venda de ativo imobilizado de R$ 1.843,66, rendimentos de investimentos de R$ 378,51 e juros recebidos de R$ 156,34. Os principais clientes foram Shopee (R$ 148.605,61), Shein (R$ 31.247,19), Mercado Livre (R$ 28.800,00), TikTok Shop (R$ 8.782,25) e Amazon (R$ 8.374,01).\n\nA queda da Shopee de R$ 188.417,68 para R$ 148.605,61 (-21%) foi o principal fator da retração de receita. Porém, há sinais positivos na diversificação: o Mercado Livre dobrou para R$ 28.800,00 e o TikTok Shop apareceu pela primeira vez com R$ 8.782,25, representando um novo canal promissor. A Amazon também cresceu 93% para R$ 8.374,01. A empresa deve acelerar a expansão nos canais alternativos para compensar a volatilidade da Shopee e buscar recompor o volume de vendas ao patamar de R$ 280 mil observado em março.",
+      "error": null
+    },
+    "despesa": {
+      "title": "Despesa",
+      "analysis": "As despesas de abril explodiram para R$ 292.580,54, o maior valor do período. A compra de matéria-prima atingiu R$ 171.010,65, alta de 75% sobre março, seguida por mercadorias (R$ 21.252,16), salários (R$ 13.199,06), insumos para expedição (R$ 13.127,41), ADS (R$ 12.919,00), serviços contratados (R$ 9.894,66), impostos sobre receita (R$ 9.819,01) e frete (R$ 7.774,57). Os maiores fornecedores foram Ginger Fragrances (R$ 76.436,01), Symrise (R$ 33.986,52) e Etil (R$ 17.410,00).\n\nO gasto de R$ 171.010,65 em matéria-prima é o triplo de janeiro e quase o dobro de março, sugerindo forte antecipação de compras ou preparação para escala de produção. Este nível de investimento em insumos é insustentável se não for acompanhado por crescimento proporcional de vendas nos meses seguintes. A concentração em Ginger Fragrances (R$ 76.436,01, ou 45% do total de matéria-prima) representa risco de fornecedor único. Recomenda-se diversificar a base de fornecedores e alinhar o ritmo de compras ao ciclo de vendas para evitar descasamento de caixa.",
+      "error": null
+    },
+    "fluxo_caixa": {
+      "title": "Fluxo de Caixa",
+      "analysis": "O fluxo de caixa de abril registrou o pior resultado do período com saldo negativo de R$ -55.555,60, revertendo completamente os ganhos de março (R$ 63.126,63). As saídas de R$ 292.580,54 superaram as entradas de R$ 237.024,94 em 23,4%. Considerando o acumulado dos quatro meses, o saldo líquido de caixa é de R$ 121.358,63 (R$ 29.690,74 + R$ 84.096,86 + R$ 63.126,63 - R$ 55.555,60), ainda positivo mas em tendência de deterioração.\n\nA queima de caixa de R$ 55.555,60 em um único mês consome quase metade do caixa acumulado nos três meses anteriores. Se este ritmo de despesas se mantiver sem crescimento proporcional de receita, a empresa entrará em situação crítica de liquidez em poucos meses. É imperativo implementar controle rigoroso de desembolsos, priorizar a conversão do estoque de matéria-prima em produtos acabados e vendas, e postergar investimentos não essenciais. A projeção de caixa para os próximos 90 dias deve ser atualizada semanalmente.",
+      "error": null
+    },
+    "tesouraria": {
+      "title": "Tesouraria",
+      "analysis": "A tesouraria de abril movimentou R$ 529.605,48 entre entradas e saídas, com posição líquida negativa de R$ -55.555,60. Os rendimentos de investimentos caíram para R$ 378,51 (contra R$ 481,72 em março), possivelmente refletindo resgate de aplicações para cobrir o déficit operacional. Os juros recebidos de R$ 156,34 e a venda de ativo de R$ 1.843,66 foram contribuições marginais insuficientes para compensar o desequilíbrio.\n\nA posição de tesouraria deteriorou-se significativamente e requer medidas emergenciais. A empresa deve avaliar a necessidade de nova captação de crédito ou antecipação de recebíveis para recompor o capital de giro, porém com cautela para não aumentar excessivamente o endividamento. A prioridade deve ser a execução do estoque de matéria-prima acumulado para gerar receita nos próximos meses. Caso a situação persista em maio, será necessário renegociar prazos com fornecedores e reavaliar o plano de expansão.",
+      "error": null
+    },
+    "comparativo": {
+      "title": "Comparativo",
+      "analysis": "Abril marcou uma inflexão negativa na trajetória da Notável Aroma em 2026. A receita caiu 16% em relação a março e as despesas subiram 34%, criando um déficit de R$ 55.555,60 que contrasta fortemente com o superávit de R$ 63.126,63 do mês anterior. O resultado operacional DRE caiu de R$ 91.845,42 para R$ -52.554,90, variação de R$ 144.400,32 negativos. A margem líquida passou de 22,44% para -23,44%.\n\nA análise comparativa dos quatro meses revela um padrão preocupante de volatilidade: janeiro positivo (R$ 29,7 mil), fevereiro positivo com ressalva (R$ 84,1 mil inflado por empréstimo), março forte (R$ 63,1 mil) e abril severamente negativo (R$ -55,6 mil). O principal fator de instabilidade é a compra de matéria-prima, que oscilou entre R$ 59 mil e R$ 171 mil sem correlação direta com o volume de vendas. Para maio, é essencial que a receita retorne ao patamar de R$ 280 mil e que as compras de insumos sejam limitadas ao estritamente necessário para produção.",
+      "error": null
+    }
+  },
+  "conclusao": "Abril foi o pior mês de 2026 para a Notável Aroma, com déficit de caixa de R$ 55.555,60 causado pela explosão de custos com matéria-prima (R$ 171.010,65) combinada com queda de receita. A empresa precisa converter urgentemente o estoque acumulado em vendas, controlar desembolsos e diversificar canais para recuperar a saúde financeira nos próximos meses."
+}

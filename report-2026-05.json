@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-05-29T00:00:00.000Z",
+  "empresa": "Notável Aroma",
+  "periodo": "Maio/2026",
+  "year": 2026,
+  "month": 5,
+  "filter": "realizado",
+  "secoes": {
+    "visao_geral": {
+      "title": "Visão Geral",
+      "analysis": "Maio de 2026 trouxe recuperação para a Notável Aroma, com receita total de R$ 277.874,77 e despesas de R$ 250.830,20, gerando saldo líquido de caixa positivo de R$ 27.044,57 e margem de 9,73%. O resultado operacional DRE foi de R$ 32.836,99, com receita de R$ 270.188,11, custos de R$ 173.716,42 e despesas de R$ 63.634,70. A empresa reverteu o déficit severo de abril e retornou ao campo positivo, embora com margem ainda abaixo dos melhores meses do ano.\n\nA recuperação de maio é encorajadora, porém a margem de 9,73% é a segunda mais baixa do período (superando apenas abril com -23,44%). A receita retornou ao patamar de R$ 278 mil, próximo dos R$ 281 mil de março, mas as despesas permanecem elevadas em R$ 250,8 mil. Há ainda R$ 16.812,56 a receber e R$ 12.695,59 a pagar pendentes, o que indica um saldo potencial adicional de R$ 4.116,97. A empresa deve manter a disciplina de custos demonstrada e buscar ampliar a margem nos próximos meses para reconstruir as reservas consumidas em abril.",
+      "error": null
+    },
+    "receita": {
+      "title": "Receita",
+      "analysis": "A receita de maio atingiu R$ 277.874,77, com repasses de vendas em R$ 263.070,84 representando 95% do total. Complementaram a receita a compra de mercadorias (R$ 4.486,66, possivelmente devolução ou ajuste), receita com vendas de R$ 4.282,07, venda de ativo imobilizado de R$ 3.200,00 e outras receitas de R$ 1.185,20. Os principais clientes foram Shopee (R$ 158.834,02), Mercado Livre (R$ 42.000,00), Shein (R$ 30.043,69), TikTok Shop (R$ 25.468,27) e ajustes de reconciliação (R$ 7.686,66).\n\nA diversificação de canais avançou significativamente em maio. O Mercado Livre saltou de R$ 28.800,00 para R$ 42.000,00 (aumento de 46%), e o TikTok Shop triplicou de R$ 8.782,25 para R$ 25.468,27, consolidando-se como quarto maior canal. A Shopee cresceu 7% para R$ 158.834,02, recuperando-se parcialmente da queda de abril. Juntos, os canais alternativos (Mercado Livre, Shein, TikTok, ajustes) somam R$ 105.198,62, representando 38% da receita total, contra cerca de 25% nos meses anteriores. Esta tendência de diversificação reduz o risco de concentração e deve ser incentivada.",
+      "error": null
+    },
+    "despesa": {
+      "title": "Despesa",
+      "analysis": "As despesas de maio totalizaram R$ 250.830,20, queda de 14% em relação a abril (R$ 292.580,54). A matéria-prima recuou para R$ 134.802,36 (-21% sobre abril), seguida por mercadorias (R$ 14.155,45), impostos sobre receita (R$ 14.055,43), ADS (R$ 12.790,00), salários (R$ 12.364,23), serviços contratados (R$ 11.807,64), insumos para expedição (R$ 11.455,20) e ativo imobilizado (R$ 4.974,19). Os principais fornecedores foram Ginger Fragrances (R$ 51.619,09), Etil (R$ 32.600,00), Ornata Domus (R$ 15.654,47) e Simples Nacional (R$ 14.055,43).\n\nA redução nos custos de matéria-prima de R$ 171 mil para R$ 134,8 mil é um avanço, mas o valor ainda permanece elevado se comparado ao início do ano (R$ 59,2 mil em janeiro). O aparecimento de impostos sobre receita (Simples Nacional) como item relevante (R$ 14.055,43) reflete o crescimento da base tributável. Os gastos com serviços contratados subiram para R$ 11.807,64, sugerindo terceirização de atividades. Recomenda-se estabilizar as compras de matéria-prima no patamar de R$ 100-120 mil mensais e avaliar a relação custo-benefício dos serviços terceirizados.",
+      "error": null
+    },
+    "fluxo_caixa": {
+      "title": "Fluxo de Caixa",
+      "analysis": "O fluxo de caixa de maio retornou ao positivo com saldo de R$ 27.044,57, após o déficit de R$ 55.555,60 de abril. As entradas de R$ 277.874,77 superaram as saídas de R$ 250.830,20 com margem de 9,73%. Adicionalmente, há R$ 16.812,56 a receber e R$ 12.695,59 a pagar, gerando expectativa de fluxo líquido adicional de R$ 4.116,97 nos próximos dias. O saldo acumulado dos cinco meses é de R$ 148.403,20.\n\nEmbora positivo, o fluxo de maio foi o segundo mais fraco do período em termos absolutos (superando apenas janeiro). O saldo acumulado de R$ 148.403,20 representa uma posição razoável, mas vulnerável a novos meses deficitários como abril. A existência de valores a receber (R$ 16.812,56) e a pagar (R$ 12.695,59) indica que o mês ainda não está completamente fechado. A empresa deve priorizar a cobrança dos recebíveis e gerenciar o cronograma de pagamentos para manter o fluxo estável. A meta para junho deve ser atingir margem de caixa acima de 15%.",
+      "error": null
+    },
+    "tesouraria": {
+      "title": "Tesouraria",
+      "analysis": "A tesouraria de maio movimentou R$ 528.704,97 entre entradas e saídas, com posição líquida positiva de R$ 27.044,57. Diferentemente dos meses anteriores, não houve captação ou pagamento de empréstimo registrado, sugerindo possível período de carência ou conclusão das amortizações programadas. A venda de ativo imobilizado gerou R$ 3.200,00 e os valores a receber pendentes de R$ 16.812,56 representam liquidez de curto prazo ainda não realizada.\n\nA tesouraria encontra-se em fase de estabilização após a turbulência de abril. A ausência de movimentações de empréstimo pode indicar que a empresa está priorizando a geração orgânica de caixa, o que é positivo. Contudo, o saldo devedor do empréstimo de R$ 110.000,00 captado em fevereiro (parcialmente amortizado) ainda representa uma obrigação relevante. A gestão de tesouraria deve focar na maximização do giro de capital de giro, antecipação de recebíveis quando necessário e manutenção de reserva mínima para cobrir pelo menos 30 dias de despesas operacionais.",
+      "error": null
+    },
+    "comparativo": {
+      "title": "Comparativo",
+      "analysis": "O panorama de janeiro a maio de 2026 revela uma empresa em crescimento acelerado com volatilidade significativa. A receita total acumulada foi de R$ 1.280.779,34, com despesas de R$ 1.132.376,14 e saldo líquido de R$ 148.403,20, resultando em margem média de 11,59%. O melhor mês foi março (resultado operacional de R$ 91.845,42) e o pior foi abril (R$ -52.554,90). A receita mensal média ficou em R$ 256.155,87 e as despesas médias em R$ 226.475,23.\n\nA evolução dos cinco meses mostra clara tendência de diversificação de canais, com TikTok Shop emergindo como novo motor de crescimento e Mercado Livre ganhando relevância. A Shopee mantém liderança mas com participação decrescente, o que reduz o risco de concentração. O principal desafio estrutural é a gestão de compras de matéria-prima, que variou de R$ 59 mil a R$ 171 mil sem correlação estável com vendas. Para o segundo semestre, a Notável Aroma deve focar em estabilizar a margem operacional acima de 15%, manter a diversificação de canais e implementar política formal de compras baseada em previsão de demanda.",
+      "error": null
+    }
+  },
+  "conclusao": "Maio encerrou o primeiro quadrimestre e meio de 2026 com recuperação parcial, gerando R$ 27.044,57 de caixa após o déficit de abril. O saldo acumulado de R$ 148.403,20 é positivo, e a diversificação de canais avançou com TikTok Shop e Mercado Livre ganhando participação. A Notável Aroma deve agora consolidar a disciplina de custos e alinhar compras de matéria-prima à demanda para sustentar crescimento com rentabilidade no restante do ano."
+}
