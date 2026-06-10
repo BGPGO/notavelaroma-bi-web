@@ -1,4 +1,4 @@
-/* BGP BI — gerado por build-data.cjs em 2026-06-10T12:28:03.487Z */
+/* BGP BI — gerado por build-data.cjs em 2026-06-10T21:03:03.807Z */
 /* Empresa: Notável Aroma | Ano ref: 2026 */
 const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const MONTHS_FULL = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -23,7 +23,7 @@ const META = {
   "empresa": {
     "nome_fantasia": "Notável Aroma"
   },
-  "fetched_at": "2026-06-10T12:28:03.274Z",
+  "fetched_at": "2026-06-10T21:03:03.366Z",
   "ref_year": 2026,
   "counts": {
     "contas_pagar": 0,
