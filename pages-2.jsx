@@ -76,7 +76,7 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
   const filtersOk = (row) => {
     if (filters && filters.categoria && filters.categoria !== "Todas categorias" && row[3] !== filters.categoria) return false;
     if (filters && filters.cc && filters.cc !== "Todos centros de custo" && row[8] !== filters.cc) return false;
-    if (filters && filters.conta && row[9] !== filters.conta) return false;
+    if (filters && filters.conta && filters.conta !== "Todas contas" && row[9] !== filters.conta) return false;
     return true;
   };
 

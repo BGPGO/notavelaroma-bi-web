@@ -862,7 +862,7 @@ function filterTx(allTx, statusFilter, drilldown, regime, extraFilters) {
     if (extraFilters.cc && extraFilters.cc !== "Todos centros de custo") {
       out = out.filter(function(r) { return r[8] === extraFilters.cc; });
     }
-    if (extraFilters.conta) {
+    if (extraFilters.conta && extraFilters.conta !== "Todas contas") {
       out = out.filter(function(r) { return r[9] === extraFilters.conta; });
     }
     if (extraFilters.diaFrom && extraFilters.diaFrom > 0) {

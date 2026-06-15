@@ -745,6 +745,7 @@ const DEFAULT_FILTERS = {
   status: "Todos status",
   categoria: "Todas categorias",
   cc: "Todos centros de custo",
+  conta: "Todas contas",
   dateFrom: "",
   dateTo: "",
 };
@@ -755,6 +756,7 @@ const countActiveFilters = (f) => {
   if (f.status !== DEFAULT_FILTERS.status) n++;
   if (f.categoria !== DEFAULT_FILTERS.categoria) n++;
   if (f.cc !== DEFAULT_FILTERS.cc) n++;
+  if (f.conta && f.conta !== DEFAULT_FILTERS.conta) n++;
   if (f.dateFrom || f.dateTo) n++;
   return n;
 };
@@ -865,7 +867,7 @@ const InlineFilterBar = ({ kindHint, drilldown, setDrilldown }) => {
   );
 };
 
-// Barra global de filtros de Categoria e Centro de Custo — visível em todas as telas
+// Barra global de filtros de Categoria, Centro de Custo e Conta Bancária — visível em todas as telas
 const GlobalFilterBar = ({ filters, setFilters }) => {
   const categorias = React.useMemo(() => {
     const all = window.ALL_TX || [];
@@ -879,8 +881,12 @@ const GlobalFilterBar = ({ filters, setFilters }) => {
     for (const row of all) { if (row[8]) set.add(row[8]); }
     return [...set].sort();
   }, []);
+  const contas = React.useMemo(() => {
+    return (window.BIT && window.BIT.CONTAS) || [];
+  }, []);
   const hasActive = (filters.categoria && filters.categoria !== "Todas categorias")
-    || (filters.cc && filters.cc !== "Todos centros de custo");
+    || (filters.cc && filters.cc !== "Todos centros de custo")
+    || (filters.conta && filters.conta !== "Todas contas");
   return (
     <div className="global-filterbar">
       <label className="gfb-item">
@@ -896,8 +902,17 @@ const GlobalFilterBar = ({ filters, setFilters }) => {
           {centrosCusto.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </label>
+      {contas.length > 1 && (
+        <label className="gfb-item">
+          <Icon name="cash" />
+          <select className="filter-select" value={filters.conta || "Todas contas"} onChange={e => setFilters({ ...filters, conta: e.target.value === "Todas contas" ? "Todas contas" : e.target.value })}>
+            <option>Todas contas</option>
+            {contas.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+          </select>
+        </label>
+      )}
       {hasActive && (
-        <button className="btn-ghost gfb-clear" onClick={() => setFilters({ ...filters, categoria: "Todas categorias", cc: "Todos centros de custo" })}>
+        <button className="btn-ghost gfb-clear" onClick={() => setFilters({ ...filters, categoria: "Todas categorias", cc: "Todos centros de custo", conta: "Todas contas" })}>
           × Limpar
         </button>
       )}
