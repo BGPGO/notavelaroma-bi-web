@@ -904,7 +904,6 @@ const GlobalFilterBar = ({ filters, setFilters }) => {
       </label>
       {contasBancarias.length > 0 && (
         <label className="gfb-item">
-          <Icon name="cash" />
           <select className="filter-select" value={filters.conta || "Todas contas"} onChange={e => setFilters({ ...filters, conta: e.target.value === "Todas contas" ? "Todas contas" : e.target.value })}>
             <option>Todas contas</option>
             {contasBancarias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
