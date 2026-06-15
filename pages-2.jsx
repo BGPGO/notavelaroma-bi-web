@@ -76,7 +76,14 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
   const filtersOk = (row) => {
     if (filters && filters.categoria && filters.categoria !== "Todas categorias" && row[3] !== filters.categoria) return false;
     if (filters && filters.cc && filters.cc !== "Todos centros de custo" && row[8] !== filters.cc) return false;
-    if (filters && filters.conta && filters.conta !== "Todas contas" && row[9] !== filters.conta) return false;
+    if (filters && filters.conta && filters.conta !== "Todas contas") {
+      var bankList = (window.BIT && window.BIT.CONTAS_BANCARIAS) || [];
+      var bankAcct = bankList.find(function(b) { return b.nome === filters.conta; });
+      if (bankAcct && bankAcct.conta) {
+        var slug = bankAcct.conta.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/,'');
+        if (row[9] !== slug) return false;
+      }
+    }
     return true;
   };
 

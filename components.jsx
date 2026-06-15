@@ -881,17 +881,8 @@ const GlobalFilterBar = ({ filters, setFilters }) => {
     for (const row of all) { if (row[8]) set.add(row[8]); }
     return [...set].sort();
   }, []);
-  const contaSlugs = React.useMemo(() => {
-    const all = window.ALL_TX || [];
-    const set = new Set();
-    for (const row of all) { if (row[9]) set.add(row[9]); }
-    return [...set].sort();
-  }, []);
-  const contasMap = React.useMemo(() => {
-    const arr = (window.BIT && window.BIT.CONTAS) || [];
-    const m = {};
-    for (const c of arr) m[c.slug] = c.label;
-    return m;
+  const contasBancarias = React.useMemo(() => {
+    return (window.BIT && window.BIT.CONTAS_BANCARIAS) || [];
   }, []);
   const hasActive = (filters.categoria && filters.categoria !== "Todas categorias")
     || (filters.cc && filters.cc !== "Todos centros de custo")
@@ -911,12 +902,12 @@ const GlobalFilterBar = ({ filters, setFilters }) => {
           {centrosCusto.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </label>
-      {contaSlugs.length > 0 && (
+      {contasBancarias.length > 0 && (
         <label className="gfb-item">
           <Icon name="cash" />
           <select className="filter-select" value={filters.conta || "Todas contas"} onChange={e => setFilters({ ...filters, conta: e.target.value === "Todas contas" ? "Todas contas" : e.target.value })}>
             <option>Todas contas</option>
-            {contaSlugs.map(s => <option key={s} value={s}>{contasMap[s] || s}</option>)}
+            {contasBancarias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
           </select>
         </label>
       )}

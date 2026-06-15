@@ -112,6 +112,7 @@ const contasReceber = readJson('contas_receber', []);
 const movimentos = readJson('movimentos', []);
 const orcamento = readJson('orcamento', []);
 const contasCorrentes = readJson('contas_correntes', []);
+const contasBancarias = readJson('contas_bancarias', []);
 const summary = readJson('_summary', null);
 
 // Bancos aceitos: 033 Santander, 748 Sicredi, 756 Sicoob.
@@ -690,6 +691,7 @@ const META = ${JSON.stringify(meta, null, 2)};
 const POSICAO_CAIXA = ${JSON.stringify(POSICAO_CAIXA, null, 2)};
 const COMPOSICAO_DESPESA = ${JSON.stringify(COMPOSICAO_DESPESA, null, 2)};
 const CONTAS = ${JSON.stringify(CONTAS, null, 2)};
+const CONTAS_BANCARIAS = ${JSON.stringify(contasBancarias)};
 const DRE_INDICATORS = ${JSON.stringify(DRE_INDICATORS, null, 2)};
 const DRE_MONTHLY = ${JSON.stringify(DRE_MONTHLY, null, 2)};
 
@@ -863,7 +865,12 @@ function filterTx(allTx, statusFilter, drilldown, regime, extraFilters) {
       out = out.filter(function(r) { return r[8] === extraFilters.cc; });
     }
     if (extraFilters.conta && extraFilters.conta !== "Todas contas") {
-      out = out.filter(function(r) { return r[9] === extraFilters.conta; });
+      // Look up the company (Conta) for this bank account from CONTAS_BANCARIAS
+      var bankAcct = (typeof CONTAS_BANCARIAS !== 'undefined' ? CONTAS_BANCARIAS : []).find(function(b) { return b.nome === extraFilters.conta; });
+      if (bankAcct && bankAcct.conta) {
+        var contaSlug = bankAcct.conta.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
+        out = out.filter(function(r) { return r[9] === contaSlug; });
+      }
     }
     if (extraFilters.diaFrom && extraFilters.diaFrom > 0) {
       out = out.filter(function(r) { return r[2] >= extraFilters.diaFrom; });
@@ -894,7 +901,7 @@ function _makeBit(filter) {
     IMPOSTOS_PCT: 0,
   };
   return Object.assign({
-    META, POSICAO_CAIXA, COMPOSICAO_DESPESA, CONTAS, DRE_INDICATORS, DRE_MONTHLY,
+    META, POSICAO_CAIXA, COMPOSICAO_DESPESA, CONTAS, CONTAS_BANCARIAS, DRE_INDICATORS, DRE_MONTHLY,
     MONTHS, MONTHS_FULL, fmt, fmtK, fmtPct,
     SEGMENTS,
     MONTH_DATA: seg.MONTH_DATA,

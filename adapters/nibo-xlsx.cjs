@@ -160,6 +160,12 @@ module.exports = {
     const catRows = XLSX.utils.sheet_to_json(wb.Sheets['Categorias'], { defval: '' });
     console.log(`  Categorias: ${catRows.length} linhas`);
 
+    // --- Sheet: Contas_Bancarias ---
+    const contasBancariasRows = wb.Sheets['Contas_Bancarias']
+      ? XLSX.utils.sheet_to_json(wb.Sheets['Contas_Bancarias'], { defval: '' })
+      : [];
+    console.log(`  Contas_Bancarias: ${contasBancariasRows.length} linhas`);
+
     // Build category lookup: scheduleId -> { categoryName, parent, categoryType }
     const catBySchedule = {};
     for (const c of catDetRows) {
@@ -304,6 +310,16 @@ module.exports = {
     const contas = [...new Set(movimentos.map(m => m.conta_corrente).filter(Boolean))]
       .map(name => ({ codigo: name, descricao: name }));
     fs.writeFileSync(path.join(dataDir, 'contas_correntes.json'), JSON.stringify(contas, null, 2));
+
+    const contasBancarias = contasBancariasRows.map(r => ({
+      id: String(r.id || ''),
+      nome: String(r.Nome || '').trim(),
+      banco: String(r.Banco || '').trim(),
+      numero_banco: r['Numero Banco'] || '',
+      conta: String(r.Conta || '').trim(),
+      arquivada: !!r.Arquivada,
+    })).filter(r => !r.arquivada);
+    fs.writeFileSync(path.join(dataDir, 'contas_bancarias.json'), JSON.stringify(contasBancarias, null, 2));
 
     const departamentos = [...new Set(movimentos.map(m => m.centro_custo).filter(Boolean))]
       .map(name => ({ codigo: name, descricao: name }));
