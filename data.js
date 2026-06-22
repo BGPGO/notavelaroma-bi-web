@@ -1,4 +1,4 @@
-/* BGP BI — gerado por build-data.cjs em 2026-06-22T16:33:34.657Z */
+/* BGP BI — gerado por build-data.cjs em 2026-06-22T17:24:32.682Z */
 /* Empresa: Notável Aroma | Ano ref: 2026 */
 const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const MONTHS_FULL = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -16834,7 +16834,7 @@ const AVAILABLE_YEARS = [2030,2029,2028,2027,2026,2025];
 // aggregateTx: recomputa MONTH_DATA, KPIS, top categorias/clientes/fornecedores
 // e EXTRATO a partir de uma lista filtrada de transacoes. Chamada pelas Pages
 // quando drilldown ou statusFilter estao ativos.
-function aggregateTx(txList, year) {
+function aggregateTx(txList, year, receitaScope) {
   year = year || REF_YEAR;
   const months = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   const MONTH_DATA = months.map(m => ({ m, receita: 0, despesa: 0 }));
@@ -16853,6 +16853,10 @@ function aggregateTx(txList, year) {
     if (Number(ymonth) !== year) continue;
     const mIdx = parseInt(mes.slice(5,7), 10) - 1;
     if (mIdx < 0 || mIdx > 11) continue;
+    // receitaScope='operacional': tela Receita conta só receita operacional
+    // (exclui entradas de financiamento/investimento, ex.: empréstimo). Essas
+    // entradas continuam no Fluxo de Caixa via os agregados padrão (sem scope).
+    if (receitaScope === 'operacional' && kind === 'r' && row[11] && row[11] !== 'receita') continue;
     if (kind === 'r') {
       MONTH_DATA[mIdx].receita += valor;
       totalReceita += valor;
@@ -17033,7 +17037,7 @@ window.filterTx = filterTx;
 // Evita lag no toggle Previsto/Realizado e suporta year/month arbitrario.
 // month: 0 = ano completo, 1-12 = mes especifico.
 // regime: 'caixa' | 'competencia' (default 'caixa')
-window.getBit = function (statusFilter, drilldown, year, month, filtersOrRegime, extraFilters) {
+window.getBit = function (statusFilter, drilldown, year, month, filtersOrRegime, extraFilters, receitaScope) {
   const sf = statusFilter || window.BIT_FILTER || 'realizado';
   const y = year || window.REF_YEAR;
   // Se filtersOrRegime é objeto (ex: {categoria, cc, conta, regime}), trata como extraFilters
@@ -17051,13 +17055,13 @@ window.getBit = function (statusFilter, drilldown, year, month, filtersOrRegime,
     const ym = y + '-' + mm;
     dd = { type: 'mes', value: ym, label: ym };
   }
-  return window.recomputeBit(sf, dd, y, regime, ef);
+  return window.recomputeBit(sf, dd, y, regime, ef, receitaScope);
 };
 // Cross-filter helper: combina statusFilter + drilldown + regime e retorna BIT-like
 // com KPIs/charts/extrato recalculados em ~10ms (17k rows).
-window.recomputeBit = function (statusFilter, drilldown, year, regime, extraFilters) {
+window.recomputeBit = function (statusFilter, drilldown, year, regime, extraFilters, receitaScope) {
   const filtered = filterTx(ALL_TX, statusFilter, drilldown, regime || 'caixa', extraFilters);
-  const agg = aggregateTx(filtered, year || REF_YEAR);
+  const agg = aggregateTx(filtered, year || REF_YEAR, receitaScope);
   // Mescla com BIT base pra preservar META, helpers (fmt, fmtK), MONTHS etc.
   const base = window.BIT || {};
   return Object.assign({}, base, agg, {

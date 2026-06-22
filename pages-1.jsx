@@ -220,7 +220,8 @@ const PageOverview = ({ filters, setFilters, onOpenFilters, statusFilter, drilld
     for (const row of txFiltered) {
       if (!row[1]) continue;
       if (Number(row[1].slice(0, 4)) !== yr) continue;
-      if (row[6] !== 1) continue; // só realizado
+      // Respeita o statusFilter (filterTx já filtrou realizado/pendente/tudo):
+      // no 'a pagar/receber' mostra o DRE projetado em vez de zerar.
       const secao = row[11] || (row[0] === 'r' ? 'receita' : 'despesa');
       if (row[0] === 'r') bySecao[secao] = (bySecao[secao] || 0) + row[5];
       else bySecao[secao] = (bySecao[secao] || 0) - row[5];
@@ -415,7 +416,9 @@ const PageIndicators = ({ filters, statusFilter, drilldown, setDrilldown, year, 
 };
 
 const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown, setDrilldown, year, month }) => {
-  const B = useMemo(() => window.getBit(statusFilter, drilldown, year, month, filters), [statusFilter, drilldown, year, month, filters]);
+  // receitaScope='operacional': tela Receita mostra só receita operacional
+  // (exclui financiamento/investimento como empréstimo — esses só no Fluxo de Caixa).
+  const B = useMemo(() => window.getBit(statusFilter, drilldown, year, month, filters, null, 'operacional'), [statusFilter, drilldown, year, month, filters]);
   const mediaMes = B.TOTAL_RECEITA / 12;
   const numClientes = B.RECEITA_CLIENTES.length;
   const numLancRec = (B.EXTRATO_RECEITAS || B.EXTRATO.filter(e => e[4] > 0)).length;
