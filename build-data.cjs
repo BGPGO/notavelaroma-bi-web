@@ -314,7 +314,9 @@ function normalizeAdapter(m) {
     secao_dre: m.secao_dre || '',
     secao,
     data_venc: dataVenc,
-    data_efetiva: dataVenc || dataPago,
+    // Regime de caixa: conta paga/recebida usa a data de pagamento/recebimento;
+    // conta a pagar/receber (pendente) usa a data prevista (vencimento).
+    data_efetiva: realizado ? (dataPago || dataVenc) : (dataVenc || dataPago),
     valor,
     status: m.status || '',
     realizado,

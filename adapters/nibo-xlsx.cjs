@@ -207,7 +207,11 @@ module.exports = {
       const dataVenc = isoDate(r['Data de Vencimento']);
       const dataCriacao = isoDate(r['Data Criacao']);
       const dataAcumulacao = isoDate(r['Data Acumulacao']);
-      const dataPagamento = realizado ? (dataAcumulacao || dataVenc) : null;
+      // Data de pagamento/recebimento REAL (caixa), vinda do join /payments+/receipts
+      // do extrator. Fallback p/ vencimento quando o schedule está pago mas sem
+      // registro de pagamento (ex.: quitado via entry direta sem evento de caixa).
+      const dataPagReal = isoDate(r['Data Pagamento']);
+      const dataPagamento = realizado ? (dataPagReal || dataVenc) : null;
 
       const catInfo = catBySchedule[String(r.scheduleId || '')];
       // categoria = subcategoria detalhada (leaf)
