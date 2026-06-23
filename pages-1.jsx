@@ -581,7 +581,9 @@ const PageDespesa = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
       <div className="row" style={{ gridTemplateColumns: "minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr)" }}>
         <div className="card">
           <h2 className="card-title">Despesas por categoria</h2>
-          <BarList items={B.DESPESA_CATEGORIAS} color="red" onItemClick={handleCategoria} activeName={activeCategoria} />
+          <div style={{ maxHeight: 500, overflowY: "auto", paddingRight: 4 }}>
+            <BarList items={B.DESPESA_CATEGORIAS} color="red" onItemClick={handleCategoria} activeName={activeCategoria} />
+          </div>
         </div>
 
         <div className="card">

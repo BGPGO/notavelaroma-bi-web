@@ -415,7 +415,7 @@ function buildCategoriaAgg(items, year, kindLabel) {
     else o.fornecedores = v.clientesSet.size;
     out.push(o);
   }
-  return out.sort((a, b) => b.value - a.value).slice(0, 12);
+  return out.sort((a, b) => b.value - a.value).slice(0, 100);
 }
 
 function buildClienteAgg(items, year) {
@@ -805,10 +805,10 @@ function aggregateTx(txList, year, receitaScope) {
 
   return {
     MONTH_DATA,
-    RECEITA_CATEGORIAS: topN(recCat, 12),
-    DESPESA_CATEGORIAS: topN(despCat, 12),
-    RECEITA_CLIENTES: topN(recCli, 12),
-    DESPESA_FORNECEDORES: topN(despForn, 12),
+    RECEITA_CATEGORIAS: topN(recCat, 100),
+    DESPESA_CATEGORIAS: topN(despCat, 100),
+    RECEITA_CLIENTES: topN(recCli, 100),
+    DESPESA_FORNECEDORES: topN(despForn, 100),
     EXTRATO: extratoArr.slice(0, 200),
     EXTRATO_RECEITAS: extratoRecArr.slice(0, 200),
     EXTRATO_DESPESAS: extratoDespArr.slice(0, 200),
