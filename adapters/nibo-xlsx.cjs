@@ -191,11 +191,12 @@ module.exports = {
     const REALIZADO_SET = new Set(['quitado', 'parcialmente quitado']);
 
     const movimentos = [];
+    let splitParciais = 0;
     for (const r of schedules) {
       const tipo = String(r.Tipo || '').trim();
       const natureza = tipo === 'Credit' ? 'R' : 'P';
       const situacao = String(r.Situacao || r['Situação'] || '').trim().toLowerCase();
-      const realizado = REALIZADO_SET.has(situacao);
+      const realizadoOficial = REALIZADO_SET.has(situacao);
 
       const valorTotal = Math.abs(num(r.Valor));
       if (valorTotal === 0) continue;
@@ -208,17 +209,12 @@ module.exports = {
       const dataCriacao = isoDate(r['Data Criacao']);
       const dataAcumulacao = isoDate(r['Data Acumulacao']);
       // Data de pagamento/recebimento REAL (caixa), vinda do join /payments+/receipts
-      // do extrator. Fallback p/ vencimento quando o schedule está pago mas sem
-      // registro de pagamento (ex.: quitado via entry direta sem evento de caixa).
+      // do extrator. Fallback p/ Data Agendamento (scheduleDate = "data prevista").
       const dataPagReal = isoDate(r['Data Pagamento']);
-      const dataPagamento = realizado ? (dataPagReal || dataVenc) : null;
 
       const catInfo = catBySchedule[String(r.scheduleId || '')];
-      // categoria = subcategoria detalhada (leaf)
       const categoria = catInfo ? catInfo.categoryName : '';
-      // secao_dre = parent (seção DRE: Receitas operacionais, Custos operacionais, etc.)
       const secaoDre = catInfo ? catInfo.parent : '';
-      // centro_custo = mapeado pelo plano de contas
       const centroCusto = CENTRO_CUSTO_MAP[categoria] || '';
 
       const cliente = String(r['Cliente/Fornecedor'] || '').trim();
@@ -226,30 +222,67 @@ module.exports = {
       const schedId = String(r.scheduleId || r.id || '');
       const conta = (isOrnataBase && CONTA_OVERRIDE[schedId]) || String(r.Conta || '').trim();
 
-      movimentos.push({
-        id: String(r.scheduleId || r.id || ''),
+      const baseCampos = {
         fonte: 'nibo-xlsx',
         natureza,
-        status: realizado ? 'PAGO' : 'A_PAGAR',
-        realizado,
         data_emissao: dataCriacao || dataAgendamento || dataVenc,
         data_vencimento: dataAgendamento || dataVenc,
-        data_pagamento: dataPagamento,
         data_competencia: dataAgendamento || dataVenc,
-        valor_total: valorTotal,
-        valor_pago: paidValue,
-        valor_aberto: openValue,
         categoria,
         secao_dre: secaoDre,
         centro_custo: centroCusto,
         cliente,
         conta_corrente: conta,
         codigo_banco: '',
-        observacao: descricao,
         tags: [],
         regime: 'caixa',
-      });
+      };
+
+      // Nibo as vezes mantem Situacao "Em Aberto" mesmo com paidValue > 0
+      // (quitacao parcial nao marcada como "parcialmente quitado"). Split em 2 mov.
+      const parcialNaoMarcado = !realizadoOficial && paidValue > 0 && paidValue < valorTotal;
+
+      if (parcialNaoMarcado) {
+        const saldoAberto = openValue > 0 ? openValue : Math.max(0, valorTotal - paidValue);
+        movimentos.push({
+          ...baseCampos,
+          id: schedId + '::pago',
+          status: 'PAGO',
+          realizado: true,
+          data_pagamento: dataPagReal || dataAgendamento,
+          valor_total: paidValue,
+          valor_pago: paidValue,
+          valor_aberto: 0,
+          observacao: descricao + ' (parcial pago)',
+        });
+        movimentos.push({
+          ...baseCampos,
+          id: schedId + '::aberto',
+          status: 'A_PAGAR',
+          realizado: false,
+          data_pagamento: null,
+          valor_total: saldoAberto,
+          valor_pago: 0,
+          valor_aberto: saldoAberto,
+          observacao: descricao + ' (saldo aberto)',
+        });
+        splitParciais++;
+      } else {
+        const realizado = realizadoOficial;
+        movimentos.push({
+          ...baseCampos,
+          id: schedId,
+          status: realizado ? 'PAGO' : 'A_PAGAR',
+          realizado,
+          data_pagamento: realizado ? (dataPagReal || dataAgendamento) : null,
+          valor_total: valorTotal,
+          valor_pago: paidValue,
+          valor_aberto: openValue,
+          observacao: descricao,
+        });
+      }
     }
+    if (splitParciais > 0) console.log(`  Split parciais nao-marcados: ${splitParciais} schedules viraram 2 movs (pago + aberto)`);
 
     // Ajustes de reconciliação: só para Base Nibo.xlsx (Ornata Domus + Outside)
     const ADJUSTMENTS = !isOrnataBase ? [] : [
