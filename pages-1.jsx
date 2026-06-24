@@ -416,9 +416,12 @@ const PageIndicators = ({ filters, statusFilter, drilldown, setDrilldown, year, 
 };
 
 const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown, setDrilldown, year, month }) => {
-  // receitaScope='operacional': tela Receita mostra só receita operacional
-  // (exclui financiamento/investimento como empréstimo — esses só no Fluxo de Caixa).
-  const B = useMemo(() => window.getBit(statusFilter, drilldown, year, month, filters, null, 'operacional'), [statusFilter, drilldown, year, month, filters]);
+  // Toggle: incluir entradas não-operacionais (financiamento/investimento, ex.: empréstimo
+  // e aplicação). Default = incluir tudo (Jonathan pediu pra considerar por padrão).
+  // Quando desligado, receitaScope='operacional' exclui essas entradas (só operacional).
+  const [incluirNaoOp, setIncluirNaoOp] = useState(true);
+  const scope = incluirNaoOp ? null : 'operacional';
+  const B = useMemo(() => window.getBit(statusFilter, drilldown, year, month, filters, null, scope), [statusFilter, drilldown, year, month, filters, scope]);
   const mediaMes = B.TOTAL_RECEITA / 12;
   const numClientes = B.RECEITA_CLIENTES.length;
   const numLancRec = (B.EXTRATO_RECEITAS || B.EXTRATO.filter(e => e[4] > 0)).length;
@@ -458,6 +461,10 @@ const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
           <div className="status-line">Composição por categoria, cliente e mês</div>
         </div>
         <div className="actions">
+          <div className="range-pills" title="Inclui ou não entradas não-operacionais (empréstimos, aplicações)">
+            <button className={incluirNaoOp ? "active" : ""} onClick={() => setIncluirNaoOp(true)}>Com não-operacional</button>
+            <button className={!incluirNaoOp ? "active" : ""} onClick={() => setIncluirNaoOp(false)}>Só operacional</button>
+          </div>
         </div>
       </div>
 
