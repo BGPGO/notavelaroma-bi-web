@@ -635,7 +635,9 @@ const PageDespesa = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
 
         <div className="card">
           <h2 className="card-title">Despesas por fornecedor</h2>
-          <BarList items={B.DESPESA_FORNECEDORES} color="red" onItemClick={handleFornecedor} activeName={activeFornecedor} />
+          <div style={{ maxHeight: 500, overflowY: "auto", paddingRight: 4 }}>
+            <BarList items={B.DESPESA_FORNECEDORES} color="red" onItemClick={handleFornecedor} activeName={activeFornecedor} />
+          </div>
         </div>
       </div>
     </div>
