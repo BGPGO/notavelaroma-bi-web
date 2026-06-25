@@ -6,10 +6,15 @@ module.exports = {
     cor_primaria: "#6B4226",
   },
   fontes: {
-    adapters: ["nibo-xlsx"],
+    adapters: ["nibo-api"],
+    nibo_api: {
+      token_env: "NIBO_TOKEN",
+      cliente_label: "Notável Aroma",
+    },
+    // Legado — fonte XLSX (mantida pra rollback rapido se precisar voltar)
     nibo_xlsx: {
       base_file: "Base Nibo - Notável Aroma.xlsx",
-      conta_filter: ["Notável Aroma"],  // só Notável Aroma (sem consolidar)
+      conta_filter: ["Notável Aroma"],
     },
     drive: {
       base_path: "G:/Meu Drive/BGP/CLIENTES/BI/479. ORNATA DOMUS/BASES",
