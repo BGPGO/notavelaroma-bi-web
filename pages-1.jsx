@@ -260,6 +260,16 @@ const PageOverview = ({ filters, setFilters, onOpenFilters, statusFilter, drilld
           <div className="status-line">Cliente · ano {refYear} · status <b>{statusLabel}</b></div>
         </div>
         <div className="actions">
+          {B.META && B.META.fetched_at && (() => {
+            const d = new Date(B.META.fetched_at);
+            const pad = (n) => String(n).padStart(2, "0");
+            const fmt = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            return (
+              <div className="status-pill" title={`Última sincronização: ${B.META.fetched_at}`} style={{ fontSize: 12, color: "var(--mute)", padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8 }}>
+                Atualizado em <b style={{ color: "var(--fg)" }}>{fmt}</b>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
