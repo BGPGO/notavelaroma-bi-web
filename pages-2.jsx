@@ -1273,7 +1273,8 @@ const PageRelatorio = ({ year, statusFilter, filters }) => {
   );
 
   // resolve o nome do arquivo conforme periodo + conta
-  const contaSlug = (filters && filters.conta) || '';
+  // "Todas contas" é o default (sem filtro) — trata como vazio pra cair no report.json base
+  const contaSlug = (filters && filters.conta && filters.conta !== "Todas contas") ? filters.conta : '';
   const contaSuffix = contaSlug ? `-${contaSlug}` : '';
   const reportFileName = (y, m) => {
     if (m && m > 0) return `report-${y}-${String(m).padStart(2,'0')}${contaSuffix}.json`;
