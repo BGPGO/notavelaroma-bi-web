@@ -5,6 +5,151 @@ const { useState, useMemo, useEffect } = React;
 // concatenado (build-jsx.cjs). Reutilizado aqui pra ajustar height/showLabels dos
 // TrendCharts em mobile.
 
+// ===== Fluxo de caixa diário =====
+// Barras = valor líquido do dia (receita − despesa), verde/vermelho.
+// Linha (eixo direito) = saldo acumulado correndo. Filtro segmentado por mês.
+// Concilia "valor líquido" (fluxo) e "saldo" num único gráfico estilo fluxo de caixa.
+const FluxoDiarioCard = ({ B, statusFilter, year, isMobile }) => {
+  const fmt = B.fmt;
+  const monthsFull = B.MONTHS_FULL || ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const refYear = year || (B.META && B.META.ref_year) || new Date().getFullYear();
+
+  // Linhas do ano no status atual (usa ALL_TX cru — EXTRATO é capado em 200).
+  const rowsAno = useMemo(() => {
+    if (!window.filterTx || !window.ALL_TX) return [];
+    return window.filterTx(window.ALL_TX, statusFilter, null)
+      .filter(r => r[1] && String(r[1]).slice(0, 4) === String(refYear));
+  }, [statusFilter, refYear]);
+
+  const mesesComDado = useMemo(() => {
+    const s = new Set();
+    rowsAno.forEach(r => s.add(parseInt(String(r[1]).slice(5, 7), 10) - 1));
+    return s;
+  }, [rowsAno]);
+
+  const ultimoMesComDado = useMemo(() => {
+    let last = new Date().getMonth();
+    for (let i = 0; i < 12; i++) if (mesesComDado.has(i)) last = i;
+    return last;
+  }, [mesesComDado]);
+
+  const [mesSel, setMesSel] = useState(ultimoMesComDado);
+  useEffect(() => { setMesSel(ultimoMesComDado); }, [ultimoMesComDado]);
+
+  // Base do saldo correndo = líquido acumulado dos meses anteriores.
+  // Se houver saldo real (BIT_EXTRAS.saldos), ancora nele; senão parte do zero.
+  const saldoBaseReal = (window.BIT_EXTRAS && window.BIT_EXTRAS.saldos && window.BIT_EXTRAS.saldos.last && window.BIT_EXTRAS.saldos.last.total) || 0;
+
+  const dados = useMemo(() => {
+    const mm = String(mesSel + 1).padStart(2, "0");
+    const ym = `${refYear}-${mm}`;
+    const nDays = new Date(refYear, mesSel + 1, 0).getDate();
+    const rec = Array(nDays).fill(0), desp = Array(nDays).fill(0);
+    for (const r of rowsAno) {
+      if (r[1] !== ym) continue;
+      const d = r[2];
+      if (d < 1 || d > nDays) continue;
+      if (r[0] === "r") rec[d - 1] += r[5]; else desp[d - 1] += r[5];
+    }
+    const net = rec.map((v, i) => v - desp[i]);
+    // saldo inicial do mês = base real + líquido dos meses anteriores
+    const vls = (B.KPIS && B.KPIS.VALOR_LIQ_SERIES) || [];
+    let saldoIni = saldoBaseReal;
+    for (let i = 0; i < mesSel; i++) saldoIni += (vls[i] || 0);
+    const saldo = []; let acc = saldoIni;
+    for (let i = 0; i < nDays; i++) { acc += net[i]; saldo.push(acc); }
+    return { nDays, net, saldo, saldoIni, totalMes: net.reduce((s, v) => s + v, 0) };
+  }, [rowsAno, mesSel, refYear, saldoBaseReal]);
+
+  const { nDays, net, saldo, totalMes } = dados;
+
+  // ---- geometria SVG (eixo duplo) ----
+  const W = 1000, H = isMobile ? 260 : 340;
+  const PADL = 6, PADR = 6, PADT = 34, PADB = 26;
+  const plotW = W - PADL - PADR, plotH = H - PADT - PADB;
+  const x0 = PADL, y0 = PADT;
+  const netMax = Math.max(0, ...net), netMin = Math.min(0, ...net);
+  const netRange = (netMax - netMin) || 1;
+  const netPad = netRange * 0.18;
+  const lHi = netMax + netPad, lLo = netMin - netPad;
+  const yBar = v => y0 + plotH * (lHi - v) / ((lHi - lLo) || 1);
+  const sHi = Math.max(...saldo, 0), sLo = Math.min(...saldo, 0);
+  const sRange = (sHi - sLo) || 1;
+  const ySal = v => y0 + plotH * (sHi + sRange * 0.1 - v) / (sRange * 1.2 || 1);
+  const step = plotW / nDays;
+  const bw = Math.max(2, step * 0.55);
+  const cx = i => x0 + step * (i + 0.5);
+  const baseY = yBar(0);
+  const saldoPath = saldo.map((v, i) => `${i === 0 ? "M" : "L"}${cx(i).toFixed(1)},${ySal(v).toFixed(1)}`).join(" ");
+  const showLbls = !isMobile;
+  const fmtK = v => { const a = Math.abs(v); if (a >= 1000) return (v / 1000).toFixed(a >= 10000 ? 0 : 1).replace(".", ",") + "k"; return String(Math.round(v)); };
+
+  const MESES_ABBR = monthsFull.map(m => m.charAt(0).toUpperCase() + m.slice(1, 3));
+
+  return (
+    <div className="card">
+      <div className="card-title-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <h2 className="card-title" style={{ margin: 0 }}>Fluxo de caixa diário · {monthsFull[mesSel].charAt(0).toUpperCase() + monthsFull[mesSel].slice(1)}/{refYear}</h2>
+        <div style={{ fontSize: 12, color: "var(--fg-3)" }}>
+          Líquido do mês: <b style={{ color: totalMes >= 0 ? "var(--green)" : "var(--red)" }}>{fmt(totalMes)}</b>
+          {"  ·  Saldo final: "}<b style={{ color: "var(--cyan)" }}>{fmt(saldo[nDays - 1] || 0)}</b>
+        </div>
+      </div>
+
+      {/* Filtro de mês (segmentado, estilo seg) */}
+      <div className="seg" style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 10, marginBottom: 6 }}>
+        {MESES_ABBR.map((lbl, i) => {
+          const tem = mesesComDado.has(i);
+          return (
+            <button
+              key={i}
+              className={mesSel === i ? "active" : ""}
+              onClick={() => tem && setMesSel(i)}
+              disabled={!tem}
+              style={!tem ? { opacity: 0.35, cursor: "default" } : {}}
+              title={tem ? lbl : `${lbl} — sem lançamentos`}
+            >{lbl}</button>
+          );
+        })}
+      </div>
+
+      {/* Legenda */}
+      <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--fg-3)", margin: "4px 0 8px" }}>
+        <span><span style={{ display: "inline-block", width: 12, height: 8, background: "var(--green)", borderRadius: 2, verticalAlign: "middle", marginRight: 4 }} />Líquido do dia (entra − sai)</span>
+        <span><span style={{ display: "inline-block", width: 14, height: 2, background: "var(--cyan)", verticalAlign: "middle", marginRight: 4 }} />Saldo acumulado</span>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ display: "block", width: "100%", height: "auto" }} preserveAspectRatio="none">
+        {/* baseline zero das barras */}
+        <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--border)" strokeWidth="1" />
+        {net.map((v, i) => {
+          if (!v) return null;
+          const yTop = v >= 0 ? yBar(v) : baseY;
+          const h = Math.abs(yBar(v) - baseY);
+          const col = v >= 0 ? "var(--green)" : "var(--red)";
+          return (
+            <g key={i}>
+              <rect x={cx(i) - bw / 2} y={yTop} width={bw} height={Math.max(1, h)} rx="1.5" fill={col} opacity="0.85" />
+              {showLbls && (
+                <text x={cx(i)} y={v >= 0 ? yTop - 3 : yTop + h + 9} textAnchor="middle" fontSize="7" fill={col} fontFamily="var(--font-mono)">{fmtK(v)}</text>
+              )}
+            </g>
+          );
+        })}
+        {/* linha de saldo */}
+        <path d={saldoPath} fill="none" stroke="var(--cyan)" strokeWidth="1.8" />
+        {saldo.map((v, i) => <circle key={i} cx={cx(i)} cy={ySal(v)} r={isMobile ? 1.2 : 1.8} fill="var(--cyan)" />)}
+        {/* rótulos de dia (a cada N pra não poluir) */}
+        {net.map((_, i) => {
+          const everyN = nDays > 20 ? (isMobile ? 5 : 2) : 1;
+          if (i % everyN !== 0 && i !== nDays - 1) return null;
+          return <text key={i} x={cx(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="var(--fg-3)" fontFamily="var(--font-mono)">{i + 1}</text>;
+        })}
+      </svg>
+    </div>
+  );
+};
+
 const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown, setDrilldown, year, month }) => {
   const B = useMemo(() => window.getBit(statusFilter, drilldown, year, month, filters), [statusFilter, drilldown, year, month, filters]);
   const isMobile = useIsMobile();
@@ -533,19 +678,7 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
         </div>
       </div>
 
-      <div className="card">
-        <h2 className="card-title">Receita acumulada por mês</h2>
-        <TrendChart
-          values={saldosCum}
-          labels={B.MONTHS.map(m => m.charAt(0).toUpperCase() + m.slice(1) + " " + String((B.META && B.META.ref_year) || "").slice(-2))}
-          color="var(--cyan)"
-          height={isMobile ? 200 : 300}
-          showLabels={!isMobile}
-          gradientId="fl-saldos"
-        />
-      </div>
-
-      {DivergingBarsCard}
+      <FluxoDiarioCard B={B} statusFilter={statusFilter} year={year} isMobile={isMobile} />
     </div>
   );
 };
