@@ -1271,6 +1271,13 @@ const PageRelatorio = ({ year, statusFilter, filters }) => {
     () => window.getBit('a_pagar_receber', null, periodYear, periodMonth, filters),
     [periodYear, periodMonth, filters]
   );
+  // Receita operacional (exclui financiamento/investimento como emprestimo) — usada no KPI
+  // "Receita realizada" pra ficar consistente com a tela Receita e a Visao Geral.
+  // O total bruto de caixa vai no card "Receita bruta/total".
+  const Bop = useMemo(
+    () => window.getBit('realizado', null, periodYear, periodMonth, filters, null, 'operacional'),
+    [periodYear, periodMonth, filters]
+  );
 
   // resolve o nome do arquivo conforme periodo + conta
   // "Todas contas" é o default (sem filtro) — trata como vazio pra cair no report.json base
@@ -1455,6 +1462,7 @@ const PageRelatorio = ({ year, statusFilter, filters }) => {
 
   const k = B.KPIS || B;
   const recebido = k.TOTAL_RECEITA || 0;
+  const recebidoOp = (Bop.KPIS && Bop.KPIS.TOTAL_RECEITA != null) ? Bop.KPIS.TOTAL_RECEITA : recebido;
   const pago = k.TOTAL_DESPESA || 0;
   const liquido = k.VALOR_LIQUIDO != null ? k.VALOR_LIQUIDO : (recebido - pago);
   const margem = k.MARGEM_LIQUIDA != null ? k.MARGEM_LIQUIDA : (recebido > 0 ? (liquido / recebido) * 100 : 0);
@@ -1522,7 +1530,8 @@ node generate-report.cjs --force
         <section className="report-section">
           <h2>1. Visão Geral</h2>
           <div className="report-kpis">
-            <div className="report-kpi"><span className="lbl">Receita realizada</span><span className="val green">{B.fmt(recebido)}</span></div>
+            <div className="report-kpi"><span className="lbl">Receita realizada</span><span className="val green">{B.fmt(recebidoOp)}</span></div>
+            <div className="report-kpi"><span className="lbl">Receita bruta/total</span><span className="val green">{B.fmt(recebido)}</span></div>
             <div className="report-kpi"><span className="lbl">Despesa realizada</span><span className="val red">{B.fmt(pago)}</span></div>
             <div className="report-kpi"><span className="lbl">Resultado líquido</span><span className="val" style={{ color: liquido >= 0 ? "var(--green)" : "var(--red)" }}>{B.fmt(liquido)}</span></div>
             <div className="report-kpi"><span className="lbl">Margem líquida</span><span className="val">{B.fmtPct ? B.fmtPct(margem) : margem.toFixed(2) + "%"}</span></div>
@@ -1533,7 +1542,8 @@ node generate-report.cjs --force
         <section className="report-section">
           <h2>2. Receita</h2>
           <div className="report-kpis">
-            <div className="report-kpi"><span className="lbl">Receita recebida</span><span className="val green">{B.fmt(recebido)}</span></div>
+            <div className="report-kpi"><span className="lbl">Receita recebida (operacional)</span><span className="val green">{B.fmt(recebidoOp)}</span></div>
+            <div className="report-kpi"><span className="lbl">Receita bruta/total</span><span className="val green">{B.fmt(recebido)}</span></div>
             <div className="report-kpi"><span className="lbl">Receita a receber</span><span className="val">{B.fmt(aReceber)}</span></div>
           </div>
           <h3 className="report-sub">Top 5 categorias</h3>
