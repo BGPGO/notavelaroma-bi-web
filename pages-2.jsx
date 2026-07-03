@@ -9,17 +9,20 @@ const { useState, useMemo, useEffect } = React;
 // Barras = valor líquido do dia (receita − despesa), verde/vermelho.
 // Linha (eixo direito) = saldo acumulado correndo. Filtro segmentado por mês.
 // Concilia "valor líquido" (fluxo) e "saldo" num único gráfico estilo fluxo de caixa.
-const FluxoDiarioCard = ({ B, statusFilter, year, isMobile }) => {
+const FluxoDiarioCard = ({ B, statusFilter, year, isMobile, filters }) => {
   const fmt = B.fmt;
   const monthsFull = B.MONTHS_FULL || ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   const refYear = year || (B.META && B.META.ref_year) || new Date().getFullYear();
 
   // Linhas do ano no status atual (usa ALL_TX cru — EXTRATO é capado em 200).
+  // Respeita os mesmos filtros do getBit (regime + filters: conta/empresa, categoria, cc, datas)
+  // pra ficar consistente com o resto da página — importante em BIs multi-empresa.
   const rowsAno = useMemo(() => {
     if (!window.filterTx || !window.ALL_TX) return [];
-    return window.filterTx(window.ALL_TX, statusFilter, null)
+    const regime = (filters && filters.regime) || 'caixa';
+    return window.filterTx(window.ALL_TX, statusFilter, null, regime, filters)
       .filter(r => r[1] && String(r[1]).slice(0, 4) === String(refYear));
-  }, [statusFilter, refYear]);
+  }, [statusFilter, refYear, filters]);
 
   const mesesComDado = useMemo(() => {
     const s = new Set();
@@ -715,7 +718,7 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
         </div>
       </div>
 
-      <FluxoDiarioCard B={B} statusFilter={statusFilter} year={year} isMobile={isMobile} />
+      <FluxoDiarioCard B={B} statusFilter={statusFilter} year={year} isMobile={isMobile} filters={filters} />
     </div>
   );
 };
