@@ -1463,6 +1463,14 @@ const PageRelatorio = ({ year, statusFilter, filters }) => {
   const k = B.KPIS || B;
   const recebido = k.TOTAL_RECEITA || 0;
   const recebidoOp = (Bop.KPIS && Bop.KPIS.TOTAL_RECEITA != null) ? Bop.KPIS.TOTAL_RECEITA : recebido;
+  // Reconciliação bruta -> operacional: categorias de receita classificadas como não
+  // operacionais (empréstimo, venda de imobilizado, estornos, rendimentos, etc).
+  const _opCatMap = {};
+  (Bop.RECEITA_CATEGORIAS || []).forEach((c) => { _opCatMap[c.name] = c.value; });
+  const receitaNaoOp = (B.RECEITA_CATEGORIAS || [])
+    .map((c) => ({ name: c.name, value: c.value - (_opCatMap[c.name] || 0) }))
+    .filter((c) => Math.abs(c.value) > 0.01)
+    .sort((a, b) => b.value - a.value);
   const pago = k.TOTAL_DESPESA || 0;
   const liquido = k.VALOR_LIQUIDO != null ? k.VALOR_LIQUIDO : (recebido - pago);
   const margem = k.MARGEM_LIQUIDA != null ? k.MARGEM_LIQUIDA : (recebido > 0 ? (liquido / recebido) * 100 : 0);
@@ -1546,6 +1554,14 @@ node generate-report.cjs --force
             <div className="report-kpi"><span className="lbl">Receita bruta/total</span><span className="val green">{B.fmt(recebido)}</span></div>
             <div className="report-kpi"><span className="lbl">Receita a receber</span><span className="val">{B.fmt(aReceber)}</span></div>
           </div>
+          <h3 className="report-sub">Reconciliação — receita bruta/total → operacional</h3>
+          <ul className="report-list">
+            <li><span>Receita bruta/total</span><b>{B.fmt(recebido)}</b></li>
+            {receitaNaoOp.map((c, i) => (
+              <li key={i}><span style={{ color: "var(--fg-2)" }}>(−) {c.name}</span><b style={{ color: "var(--fg-2)" }}>{B.fmt(c.value)}</b></li>
+            ))}
+            <li style={{ fontWeight: 700, borderTop: "1px solid var(--border)", marginTop: 6, paddingTop: 8 }}><span>= Receita operacional</span><b className="green">{B.fmt(recebidoOp)}</b></li>
+          </ul>
           <h3 className="report-sub">Top 5 categorias</h3>
           <ul className="report-list">
             {(B.RECEITA_CATEGORIAS || []).slice(0, 5).map((c, i) => (
