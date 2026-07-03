@@ -35,6 +35,7 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile }) => {
 
   const [mesSel, setMesSel] = useState(ultimoMesComDado);
   useEffect(() => { setMesSel(ultimoMesComDado); }, [ultimoMesComDado]);
+  const [hover, setHover] = useState(null); // { i, x, y, w }
 
   // Base do saldo correndo = líquido acumulado dos meses anteriores.
   // Se houver saldo real (BIT_EXTRAS.saldos), ancora nele; senão parte do zero.
@@ -119,6 +120,16 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile }) => {
         <span><span style={{ display: "inline-block", width: 14, height: 2, background: "var(--cyan)", verticalAlign: "middle", marginRight: 4 }} />Saldo acumulado</span>
       </div>
 
+      <div style={{ position: "relative" }}
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const relX = e.clientX - r.left;
+          const frac = Math.min(1, Math.max(0, relX / r.width));
+          const i = Math.min(nDays - 1, Math.max(0, Math.floor(frac * nDays)));
+          setHover({ i, x: relX, y: e.clientY - r.top, w: r.width });
+        }}
+        onMouseLeave={() => setHover(null)}
+      >
       <svg viewBox={`0 0 ${W} ${H}`} style={{ display: "block", width: "100%", height: "auto" }} preserveAspectRatio="none">
         {/* baseline zero das barras */}
         <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--border)" strokeWidth="1" />
@@ -145,16 +156,33 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile }) => {
           if (i % everyN !== 0 && i !== nDays - 1) return null;
           return <text key={i} x={cx(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="var(--fg-3)" fontFamily="var(--font-mono)">{i + 1}</text>;
         })}
-        {/* hitbox transparente por dia — hover nativo com dia + valor cheio + saldo */}
-        {net.map((v, i) => {
-          const dataStr = `${String(i + 1).padStart(2, "0")}/${String(mesSel + 1).padStart(2, "0")}/${refYear}`;
-          return (
-            <rect key={"hit" + i} x={x0 + step * i} y={y0} width={step} height={plotH} fill="transparent">
-              <title>{`${dataStr}\nLíquido do dia: ${fmt(v)}\nSaldo acumulado: ${fmt(saldo[i])}`}</title>
-            </rect>
-          );
-        })}
+        {/* guia vertical no dia sob o cursor */}
+        {hover && (
+          <line x1={cx(hover.i)} y1={y0} x2={cx(hover.i)} y2={y0 + plotH} stroke="var(--fg-3)" strokeDasharray="3 3" strokeWidth="1" opacity="0.5" />
+        )}
       </svg>
+      {hover && (() => {
+        const flip = hover.x > hover.w * 0.6;
+        const dataStr = `${String(hover.i + 1).padStart(2, "0")}/${String(mesSel + 1).padStart(2, "0")}/${refYear}`;
+        const liq = net[hover.i] || 0;
+        return (
+          <div style={{
+            position: "absolute", left: hover.x, top: Math.max(0, hover.y - 16),
+            transform: `translateY(-100%) translateX(${flip ? "calc(-100% - 14px)" : "14px"})`,
+            pointerEvents: "none", zIndex: 5,
+            background: "var(--surface-2, #10191f)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+            fontFamily: "var(--font-mono)", whiteSpace: "nowrap",
+          }}>
+            <div style={{ fontSize: 11, color: "var(--fg-3)", marginBottom: 4 }}>{dataStr}</div>
+            <div style={{ fontSize: 12, color: "var(--fg-2)" }}>Líquido do dia</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: liq >= 0 ? "var(--green)" : "var(--red)", marginBottom: 6 }}>{fmt(liq)}</div>
+            <div style={{ fontSize: 12, color: "var(--fg-2)" }}>Saldo acumulado</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--cyan)" }}>{fmt(saldo[hover.i] || 0)}</div>
+          </div>
+        );
+      })()}
+      </div>
     </div>
   );
 };
