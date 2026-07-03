@@ -964,15 +964,22 @@ window.getBit = function (statusFilter, drilldown, year, month, filtersOrRegime,
 // Cross-filter helper: combina statusFilter + drilldown + regime e retorna BIT-like
 // com KPIs/charts/extrato recalculados em ~10ms (17k rows).
 window.recomputeBit = function (statusFilter, drilldown, year, regime, extraFilters, receitaScope) {
-  const filtered = filterTx(ALL_TX, statusFilter, drilldown, regime || 'caixa', extraFilters);
+  const sf = statusFilter || 'realizado';
+  const filtered = filterTx(ALL_TX, sf, drilldown, regime || 'caixa', extraFilters);
   const agg = aggregateTx(filtered, year || REF_YEAR, receitaScope);
   // Mescla com BIT base pra preservar META, helpers (fmt, fmtK), MONTHS etc.
   const base = window.BIT || {};
+  // FLUXO_RECEITA/DESPESA/COMP_DATA vêm do SEGMENTS do status pedido — NÃO de window.BIT
+  // (global mutável que fica stale ao alternar status e zerava a tabela Fluxo).
+  const seg = (typeof SEGMENTS !== 'undefined' && (SEGMENTS[sf] || SEGMENTS.realizado)) || {};
   return Object.assign({}, base, agg, {
     TOTAL_RECEITA: agg.KPIS.TOTAL_RECEITA,
     TOTAL_DESPESA: agg.KPIS.TOTAL_DESPESA,
     VALOR_LIQUIDO: agg.KPIS.VALOR_LIQUIDO,
     MARGEM_LIQUIDA: agg.KPIS.MARGEM_LIQUIDA,
+    FLUXO_RECEITA: seg.FLUXO_RECEITA || base.FLUXO_RECEITA,
+    FLUXO_DESPESA: seg.FLUXO_DESPESA || base.FLUXO_DESPESA,
+    COMP_DATA: seg.COMP_DATA || base.COMP_DATA,
   });
 };
 window.BIT_ORCAMENTO = ${JSON.stringify(orcamento)};
