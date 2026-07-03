@@ -195,7 +195,13 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
   const isMobile = useIsMobile();
   const [view, setView] = useState("horizontal");
   const [range, setRange] = useState("12M");
-  const months6 = B.MONTHS_FULL.slice(0, 6);
+  // Vai até o último mês com movimento (mín. 6). Antes era fixo em 6 (escondia Jul+).
+  const months6 = B.MONTHS_FULL.slice(0, (() => {
+    const md = B.MONTH_DATA || [];
+    let last = 5;
+    for (let i = 0; i < md.length; i++) if ((md[i].receita || 0) !== 0 || (md[i].despesa || 0) !== 0) last = Math.max(last, i);
+    return last + 1;
+  })());
   // Receita acumulada por mês — cresce monotônica, reflete o "fluxo entrando".
   // (O net cumulativo do demo é negativo por construção dos dados fake; receita
   // acumulada é a métrica que faz a curva subir, como o usuário espera.)
