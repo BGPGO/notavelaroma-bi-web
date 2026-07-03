@@ -145,6 +145,15 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile }) => {
           if (i % everyN !== 0 && i !== nDays - 1) return null;
           return <text key={i} x={cx(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="var(--fg-3)" fontFamily="var(--font-mono)">{i + 1}</text>;
         })}
+        {/* hitbox transparente por dia — hover nativo com dia + valor cheio + saldo */}
+        {net.map((v, i) => {
+          const dataStr = `${String(i + 1).padStart(2, "0")}/${String(mesSel + 1).padStart(2, "0")}/${refYear}`;
+          return (
+            <rect key={"hit" + i} x={x0 + step * i} y={y0} width={step} height={plotH} fill="transparent">
+              <title>{`${dataStr}\nLíquido do dia: ${fmt(v)}\nSaldo acumulado: ${fmt(saldo[i])}`}</title>
+            </rect>
+          );
+        })}
       </svg>
     </div>
   );
