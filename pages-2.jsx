@@ -1014,7 +1014,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
           {/* Mini chart de saldo dia-a-dia projetado */}
           {saldoDiario.length > 1 && (
             <div className="tesouraria-mini-chart">
-              <SaldoProjetadoChart pontos={saldoDiario} saldoInicial={saldoBaseInicial} />
+              <SaldoDiarioBars pontos={saldoDiario} saldoInicial={saldoBaseInicial} fmt={B.fmt} isMobile={isMobile} />
             </div>
           )}
           <div className="t-scroll" style={{ maxHeight: 380 }}>
@@ -1053,6 +1053,86 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+// Projeção diária do saldo em contas — BARRAS verde (positivo) / vermelho (negativo).
+// O cliente quer bater o olho e ver, dia a dia, se o saldo em contas fura ou não.
+// Parte do saldo real (SALDOS_REAIS) e projeta com a-pagar/receber. Janela = `dias`.
+const SaldoDiarioBars = ({ pontos, saldoInicial, fmt, isMobile, dias = 90 }) => {
+  const [hover, setHover] = useState(null);
+  const serie = useMemo(() => {
+    const map = new Map();
+    for (const p of (pontos || [])) map.set(p.data, p.saldo);
+    const out = [];
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    let running = saldoInicial || 0;
+    for (let i = 0; i < dias; i++) {
+      const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + i);
+      const key = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+      if (map.has(key)) running = map.get(key);
+      out.push({ key, saldo: running, label: String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') });
+    }
+    return out;
+  }, [pontos, saldoInicial, dias]);
+
+  if (serie.length < 2) return null;
+  const W = 1000, H = isMobile ? 220 : 300;
+  const PADT = 18, PADB = 26, PADL = 6, PADR = 6;
+  const plotW = W - PADL - PADR, plotH = H - PADT - PADB, x0 = PADL, y0 = PADT;
+  const vals = serie.map(s => s.saldo);
+  const hi = Math.max(0, ...vals), lo = Math.min(0, ...vals);
+  const rng = (hi - lo) || 1, pad = rng * 0.12;
+  const top = hi + pad, bot = lo - pad;
+  const yOf = v => y0 + plotH * (top - v) / ((top - bot) || 1);
+  const step = plotW / serie.length;
+  const bw = Math.max(1.5, step * 0.72);
+  const cx = i => x0 + step * (i + 0.5);
+  const baseY = yOf(0);
+  const negIdx = serie.findIndex(s => s.saldo < 0);
+
+  return (
+    <div style={{ position: 'relative' }}
+      onMouseMove={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const relX = e.clientX - r.left;
+        const i = Math.min(serie.length - 1, Math.max(0, Math.floor((relX / r.width) * serie.length)));
+        setHover({ i, x: relX, y: e.clientY - r.top, w: r.width });
+      }}
+      onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', width: '100%', height: 'auto' }} preserveAspectRatio="none">
+        <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--red)" strokeOpacity="0.5" strokeDasharray="4 4" strokeWidth="1" />
+        {baseY > y0 + 10 && baseY < H - PADB && <text x={x0 + plotW} y={baseY - 3} textAnchor="end" fontSize="9" fill="var(--red)" fontFamily="var(--font-mono)">R$ 0</text>}
+        {serie.map((s, i) => {
+          const pos = s.saldo >= 0;
+          const yA = pos ? yOf(s.saldo) : baseY;
+          const h = Math.abs(yOf(s.saldo) - baseY);
+          return <rect key={i} x={cx(i) - bw / 2} y={yA} width={bw} height={Math.max(1, h)} fill={pos ? 'var(--green)' : 'var(--red)'} opacity={hover && hover.i === i ? 1 : 0.82} />;
+        })}
+        {negIdx >= 0 && (
+          <g>
+            <line x1={cx(negIdx)} y1={y0} x2={cx(negIdx)} y2={y0 + plotH} stroke="var(--red)" strokeDasharray="3 3" strokeWidth="1.2" />
+            <text x={cx(negIdx)} y={y0 - 4} textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--red)">{serie[negIdx].label}</text>
+          </g>
+        )}
+        {serie.map((s, i) => {
+          const everyN = isMobile ? 15 : 10;
+          if (i % everyN !== 0 && i !== serie.length - 1) return null;
+          return <text key={'x' + i} x={cx(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="var(--fg-3)" fontFamily="var(--font-mono)">{s.label}</text>;
+        })}
+      </svg>
+      {hover && (() => {
+        const flip = hover.x > hover.w * 0.6;
+        const s = serie[hover.i];
+        return (
+          <div style={{ position: 'absolute', left: hover.x, top: Math.max(0, hover.y - 12), transform: `translateY(-100%) translateX(${flip ? 'calc(-100% - 14px)' : '14px'})`, pointerEvents: 'none', zIndex: 5, background: 'var(--surface-2, #10191f)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px', boxShadow: '0 8px 24px rgba(0,0,0,0.45)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{s.key}</div>
+            <div style={{ fontSize: 12, color: 'var(--fg-2)' }}>Saldo em contas</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: s.saldo >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(s.saldo)}</div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
