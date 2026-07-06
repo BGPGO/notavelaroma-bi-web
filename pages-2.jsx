@@ -187,21 +187,23 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile, filters }) => {
 // Barras = SALDO ACUMULADO ao fim de cada dia (verde positivo / vermelho negativo),
 // projetando pra frente a partir do saldo REAL das contas selecionadas + a-vencer.
 // Filtro de contas: escolhe de quais contas partir (ex: sem CDB = só caixa operacional).
-const SaldoProjetadoCard = ({ B, isMobile }) => {
+const SaldoProjetadoCard = ({ B, isMobile, filters }) => {
   const fmt = B.fmt;
   const saldos = (window.BIT_EXTRAS && window.BIT_EXTRAS.saldos) || null;
+  const headerEmp = (filters && filters.conta) || ''; // seletor de empresa do topo (slug)
 
   const contasList = useMemo(() => {
     const out = [];
     const emp = (saldos && saldos.last && saldos.last.empresas) || {};
     for (const slug of Object.keys(emp)) {
+      if (headerEmp && slug !== headerEmp) continue; // escopo pela empresa selecionada no topo
       const e = emp[slug];
       for (const nome of Object.keys(e.contas || {})) {
         out.push({ key: slug + '::' + nome, empresa: slug, empresaNome: e.nome || slug, conta: nome, saldo: e.contas[nome], isCDB: /cdb/i.test(nome) });
       }
     }
     return out;
-  }, [saldos]);
+  }, [saldos, headerEmp]);
   const multiEmp = useMemo(() => new Set(contasList.map(c => c.empresa)).size > 1, [contasList]);
 
   const [sel, setSel] = useState(null);
@@ -880,7 +882,7 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
         </div>
       </div>
 
-      <SaldoProjetadoCard B={B} isMobile={isMobile} />
+      <SaldoProjetadoCard B={B} isMobile={isMobile} filters={filters} />
     </div>
   );
 };

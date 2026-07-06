@@ -871,12 +871,14 @@ function filterTx(allTx, statusFilter, drilldown, regime, extraFilters) {
       out = out.filter(function(r) { return r[8] === extraFilters.cc; });
     }
     if (extraFilters.conta && extraFilters.conta !== "Todas contas") {
-      // Look up the company (Conta) for this bank account from CONTAS_BANCARIAS
+      // filters.conta pode ser (a) slug de empresa (multi-empresa: r[9] = slug) ou
+      // (b) nome de conta bancária -> mapeia p/ empresa via CONTAS_BANCARIAS. Fallback
+      // pro valor direto (slug de empresa) quando não bate nenhuma conta bancária.
       var bankAcct = (typeof CONTAS_BANCARIAS !== 'undefined' ? CONTAS_BANCARIAS : []).find(function(b) { return b.nome === extraFilters.conta; });
-      if (bankAcct && bankAcct.conta) {
-        var contaSlug = bankAcct.conta.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
-        out = out.filter(function(r) { return r[9] === contaSlug; });
-      }
+      var contaSlug = (bankAcct && bankAcct.conta)
+        ? bankAcct.conta.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '')
+        : extraFilters.conta;
+      out = out.filter(function(r) { return r[9] === contaSlug; });
     }
     if (extraFilters.diaFrom && extraFilters.diaFrom > 0) {
       out = out.filter(function(r) { return r[2] >= extraFilters.diaFrom; });
