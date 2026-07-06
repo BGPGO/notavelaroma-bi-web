@@ -183,6 +183,151 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile, filters }) => {
   );
 };
 
+// ===== Saldo projetado em contas (dia a dia) =====
+// Barras = SALDO ACUMULADO ao fim de cada dia (verde positivo / vermelho negativo),
+// projetando pra frente a partir do saldo REAL das contas selecionadas + a-vencer.
+// Filtro de contas: escolhe de quais contas partir (ex: sem CDB = só caixa operacional).
+const SaldoProjetadoCard = ({ B, isMobile }) => {
+  const fmt = B.fmt;
+  const saldos = (window.BIT_EXTRAS && window.BIT_EXTRAS.saldos) || null;
+
+  const contasList = useMemo(() => {
+    const out = [];
+    const emp = (saldos && saldos.last && saldos.last.empresas) || {};
+    for (const slug of Object.keys(emp)) {
+      const e = emp[slug];
+      for (const nome of Object.keys(e.contas || {})) {
+        out.push({ key: slug + '::' + nome, empresa: slug, empresaNome: e.nome || slug, conta: nome, saldo: e.contas[nome], isCDB: /cdb/i.test(nome) });
+      }
+    }
+    return out;
+  }, [saldos]);
+  const multiEmp = useMemo(() => new Set(contasList.map(c => c.empresa)).size > 1, [contasList]);
+
+  const [sel, setSel] = useState(null);
+  useEffect(() => { setSel(new Set(contasList.map(c => c.key))); }, [contasList.length]);
+  const selSet = sel || new Set(contasList.map(c => c.key));
+  const [dias, setDias] = useState(30);
+  const [hover, setHover] = useState(null);
+
+  const startBalance = useMemo(() => contasList.filter(c => selSet.has(c.key)).reduce((s, c) => s + c.saldo, 0), [contasList, selSet]);
+  const selEmpresas = useMemo(() => new Set(contasList.filter(c => selSet.has(c.key)).map(c => c.empresa)), [contasList, selSet]);
+
+  const serie = useMemo(() => {
+    const all = window.ALL_TX || [];
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    const todayKey = t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate();
+    const netByDay = new Map();
+    for (const r of all) {
+      if (r[6] !== 0) continue;              // só a-vencer (não realizado)
+      const r9 = r[9];
+      if (r9 && !selEmpresas.has(r9)) continue; // multi-empresa (Ornata); Notável r9='' passa
+      const ym = r[1], dia = r[2]; if (!ym || !dia) continue;
+      const dk = (+ym.slice(0, 4)) * 10000 + (+ym.slice(5, 7)) * 100 + dia;
+      if (dk < todayKey) continue;           // vencidos ficam de fora (por ora)
+      netByDay.set(dk, (netByDay.get(dk) || 0) + (r[0] === 'r' ? r[5] : -r[5]));
+    }
+    const out = []; let acc = startBalance;
+    for (let i = 0; i < dias; i++) {
+      const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + i);
+      const dk = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+      acc += (netByDay.get(dk) || 0);
+      const dd = String(d.getDate()).padStart(2, '0'), mm = String(d.getMonth() + 1).padStart(2, '0');
+      out.push({ saldo: acc, label: dd + '/' + mm, full: dd + '/' + mm + '/' + d.getFullYear() });
+    }
+    return out;
+  }, [startBalance, selEmpresas, dias]);
+
+  const toggle = (key) => { const n = new Set(selSet); n.has(key) ? n.delete(key) : n.add(key); setSel(n); };
+  const setAll = () => setSel(new Set(contasList.map(c => c.key)));
+  const setSemCDB = () => setSel(new Set(contasList.filter(c => !c.isCDB).map(c => c.key)));
+  const isTodas = selSet.size === contasList.length;
+  const isSemCDB = contasList.some(c => c.isCDB) && selSet.size > 0 && [...selSet].every(k => { const c = contasList.find(x => x.key === k); return c && !c.isCDB; }) && contasList.filter(c => !c.isCDB).every(c => selSet.has(c.key));
+
+  const fmtK = v => { const a = Math.abs(v); if (a >= 1000) return (v / 1000).toFixed(a >= 10000 ? 0 : 1).replace('.', ',') + 'k'; return String(Math.round(v)); };
+
+  if (!saldos || !saldos.last) {
+    return <div className="card"><h2 className="card-title">Saldo projetado em contas</h2><p style={{ color: 'var(--fg-3)', fontSize: 13, marginTop: 8 }}>Saldo real ainda não carregado. Aguarde o próximo refresh (fetch-saldos).</p></div>;
+  }
+
+  const W = 1000, H = isMobile ? 240 : 320;
+  const PADL = 6, PADR = 6, PADT = 26, PADB = 24;
+  const plotW = W - PADL - PADR, plotH = H - PADT - PADB, x0 = PADL, y0 = PADT;
+  const vals = serie.map(s => s.saldo);
+  const hiV = Math.max(0, ...vals), loV = Math.min(0, ...vals);
+  const rng = (hiV - loV) || 1, pad = rng * 0.15;
+  const top = hiV + pad, bot = loV - pad;
+  const yBar = v => y0 + plotH * (top - v) / ((top - bot) || 1);
+  const step = plotW / Math.max(1, serie.length);
+  const bw = Math.max(2, step * 0.6);
+  const cx = i => x0 + step * (i + 0.5);
+  const baseY = yBar(0);
+  const saldoFim = serie.length ? serie[serie.length - 1].saldo : startBalance;
+  const negIdx = serie.findIndex(s => s.saldo < 0);
+
+  return (
+    <div className="card">
+      <div className="card-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <h2 className="card-title" style={{ margin: 0 }}>Saldo projetado em contas (dia a dia)</h2>
+        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+          Saldo inicial: <b>{fmt(startBalance)}</b>{'  ·  '}Em {dias}d: <b style={{ color: saldoFim >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(saldoFim)}</b>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', margin: '10px 0 4px' }}>
+        <div className="seg" style={{ display: 'flex', gap: 4 }}>
+          <button className={isTodas ? 'active' : ''} onClick={setAll}>Todas</button>
+          {contasList.some(c => c.isCDB) && <button className={isSemCDB ? 'active' : ''} onClick={setSemCDB}>Sem CDB</button>}
+        </div>
+        <div className="seg" style={{ display: 'flex', gap: 4 }}>
+          {[30, 60, 90].map(d => <button key={d} className={dias === d ? 'active' : ''} onClick={() => setDias(d)}>{d}d</button>)}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+        {contasList.map(c => (
+          <button key={c.key} onClick={() => toggle(c.key)}
+            style={{ fontSize: 10, padding: '3px 7px', borderRadius: 12, cursor: 'pointer', fontFamily: 'var(--font-mono)',
+              border: '1px solid ' + (selSet.has(c.key) ? 'var(--cyan)' : 'var(--border)'),
+              background: selSet.has(c.key) ? 'rgba(34,211,238,0.12)' : 'transparent',
+              color: selSet.has(c.key) ? 'var(--text)' : 'var(--fg-3)', opacity: selSet.has(c.key) ? 1 : 0.55 }}
+            title={(multiEmp ? c.empresaNome + ' · ' : '') + c.conta + ': ' + fmt(c.saldo)}>
+            {(multiEmp ? c.empresaNome.split(' ')[0] + ' · ' : '') + c.conta} · {fmtK(c.saldo)}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--fg-3)', margin: '0 0 6px' }}>
+        <span><span style={{ display: 'inline-block', width: 12, height: 8, background: 'var(--green)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }} />Saldo positivo no dia</span>
+        <span><span style={{ display: 'inline-block', width: 12, height: 8, background: 'var(--red)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }} />Saldo negativo no dia</span>
+      </div>
+
+      <div style={{ position: 'relative' }}
+        onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); const relX = e.clientX - r.left; const i = Math.min(serie.length - 1, Math.max(0, Math.floor((relX / r.width) * serie.length))); setHover({ i, x: relX, y: e.clientY - r.top, w: r.width }); }}
+        onMouseLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', width: '100%', height: 'auto' }} preserveAspectRatio="none">
+          <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--red)" strokeOpacity={loV < 0 ? 0.6 : 0.25} strokeDasharray="4 4" strokeWidth="1" />
+          {loV < 0 && baseY > y0 + 8 && baseY < H - PADB && <text x={x0 + plotW} y={baseY - 3} textAnchor="end" fontSize="9" fill="var(--red)" fontFamily="var(--font-mono)">R$ 0</text>}
+          {serie.map((s, i) => { const pos = s.saldo >= 0; const yT = pos ? yBar(s.saldo) : baseY; const h = Math.abs(yBar(s.saldo) - baseY); const col = pos ? 'var(--green)' : 'var(--red)'; return (
+            <g key={i}>
+              <rect x={cx(i) - bw / 2} y={yT} width={bw} height={Math.max(1, h)} rx="1.5" fill={col} opacity={hover && hover.i === i ? 1 : 0.85} />
+              {!isMobile && dias <= 60 && <text x={cx(i)} y={pos ? yT - 3 : yT + h + 9} textAnchor="middle" fontSize="7" fill={col} fontFamily="var(--font-mono)">{fmtK(s.saldo)}</text>}
+            </g>
+          ); })}
+          {negIdx >= 0 && <line x1={cx(negIdx)} y1={y0} x2={cx(negIdx)} y2={y0 + plotH} stroke="var(--red)" strokeDasharray="3 3" strokeWidth="1.2" />}
+          {serie.map((s, i) => { const everyN = serie.length > 40 ? (isMobile ? 10 : 5) : (isMobile ? 4 : 2); if (i % everyN !== 0 && i !== serie.length - 1) return null; return <text key={'x' + i} x={cx(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="var(--fg-3)" fontFamily="var(--font-mono)">{s.label}</text>; })}
+        </svg>
+        {hover && serie[hover.i] && (() => { const flip = hover.x > hover.w * 0.6; const s = serie[hover.i]; return (
+          <div style={{ position: 'absolute', left: hover.x, top: Math.max(0, hover.y - 12), transform: `translateY(-100%) translateX(${flip ? 'calc(-100% - 14px)' : '14px'})`, pointerEvents: 'none', zIndex: 5, background: 'var(--surface-2, #10191f)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px', boxShadow: '0 8px 24px rgba(0,0,0,0.45)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{s.full}</div>
+            <div style={{ fontSize: 12, color: 'var(--fg-2)' }}>Saldo em contas</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: s.saldo >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(s.saldo)}</div>
+          </div>
+        ); })()}
+      </div>
+    </div>
+  );
+};
+
 const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown, setDrilldown, year, month }) => {
   const B = useMemo(() => window.getBit(statusFilter, drilldown, year, month, filters), [statusFilter, drilldown, year, month, filters]);
   const isMobile = useIsMobile();
@@ -717,7 +862,7 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
         </div>
       </div>
 
-      <FluxoDiarioCard B={B} statusFilter={statusFilter} year={year} isMobile={isMobile} filters={filters} />
+      <SaldoProjetadoCard B={B} isMobile={isMobile} />
     </div>
   );
 };
