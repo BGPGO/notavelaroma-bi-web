@@ -56,47 +56,46 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile, filters }) => {
       if (r[0] === "r") rec[d - 1] += r[5]; else desp[d - 1] += r[5];
     }
     const net = rec.map((v, i) => v - desp[i]);
-    // saldo inicial do mês = base real + líquido dos meses anteriores
+    // Saldo EM CONTAS reconstruído, ancorado no saldo REAL de hoje:
+    // saldo(início do ano) = saldoReal − líquido do ano todo; daí acumula.
+    // Assim o último dia do mês corrente bate com o saldo real.
     const vls = (B.KPIS && B.KPIS.VALOR_LIQ_SERIES) || [];
-    let saldoIni = saldoBaseReal;
+    const totalYearNet = vls.reduce((s, v) => s + (v || 0), 0);
+    const opening = saldoBaseReal > 0 ? (saldoBaseReal - totalYearNet) : 0;
+    let saldoIni = opening;
     for (let i = 0; i < mesSel; i++) saldoIni += (vls[i] || 0);
     const saldo = []; let acc = saldoIni;
     for (let i = 0; i < nDays; i++) { acc += net[i]; saldo.push(acc); }
     return { nDays, net, saldo, saldoIni, totalMes: net.reduce((s, v) => s + v, 0) };
   }, [rowsAno, mesSel, refYear, saldoBaseReal]);
 
-  const { nDays, net, saldo, totalMes } = dados;
+  const { nDays, net, saldo, saldoIni, totalMes } = dados;
+  const saldoFim = saldo[nDays - 1] || 0;
 
-  // ---- geometria SVG (eixo duplo) ----
+  // ---- geometria SVG (barras = saldo em contas) ----
   const W = 1000, H = isMobile ? 260 : 340;
   const PADL = 6, PADR = 6, PADT = 34, PADB = 26;
   const plotW = W - PADL - PADR, plotH = H - PADT - PADB;
   const x0 = PADL, y0 = PADT;
-  const netMax = Math.max(0, ...net), netMin = Math.min(0, ...net);
-  const netRange = (netMax - netMin) || 1;
-  const netPad = netRange * 0.18;
-  const lHi = netMax + netPad, lLo = netMin - netPad;
-  const yBar = v => y0 + plotH * (lHi - v) / ((lHi - lLo) || 1);
-  const sHi = Math.max(...saldo, 0), sLo = Math.min(...saldo, 0);
-  const sRange = (sHi - sLo) || 1;
-  const ySal = v => y0 + plotH * (sHi + sRange * 0.1 - v) / (sRange * 1.2 || 1);
+  const sMax = Math.max(0, ...saldo), sMin = Math.min(0, ...saldo);
+  const sRange = (sMax - sMin) || 1, sPad = sRange * 0.12;
+  const hi = sMax + sPad, lo = sMin - sPad;
+  const yBar = v => y0 + plotH * (hi - v) / ((hi - lo) || 1);
   const step = plotW / nDays;
-  const bw = Math.max(2, step * 0.55);
+  const bw = Math.max(2, step * 0.62);
   const cx = i => x0 + step * (i + 0.5);
   const baseY = yBar(0);
-  const saldoPath = saldo.map((v, i) => `${i === 0 ? "M" : "L"}${cx(i).toFixed(1)},${ySal(v).toFixed(1)}`).join(" ");
-  const showLbls = !isMobile;
-  const fmtK = v => { const a = Math.abs(v); if (a >= 1000) return (v / 1000).toFixed(a >= 10000 ? 0 : 1).replace(".", ",") + "k"; return String(Math.round(v)); };
+  const negIdx = saldo.findIndex(v => v < 0);
 
   const MESES_ABBR = monthsFull.map(m => m.charAt(0).toUpperCase() + m.slice(1, 3));
 
   return (
     <div className="card">
       <div className="card-title-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <h2 className="card-title" style={{ margin: 0 }}>Fluxo de caixa diário · {monthsFull[mesSel].charAt(0).toUpperCase() + monthsFull[mesSel].slice(1)}/{refYear}</h2>
+        <h2 className="card-title" style={{ margin: 0 }}>Saldo em contas · {monthsFull[mesSel].charAt(0).toUpperCase() + monthsFull[mesSel].slice(1)}/{refYear}</h2>
         <div style={{ fontSize: 12, color: "var(--fg-3)" }}>
-          Líquido do mês: <b style={{ color: totalMes >= 0 ? "var(--green)" : "var(--red)" }}>{fmt(totalMes)}</b>
-          {"  ·  Saldo final: "}<b style={{ color: "var(--cyan)" }}>{fmt(saldo[nDays - 1] || 0)}</b>
+          Início: <b>{fmt(saldoIni)}</b>
+          {"  ·  Fim: "}<b style={{ color: saldoFim >= 0 ? "var(--green)" : "var(--red)" }}>{fmt(saldoFim)}</b>
         </div>
       </div>
 
@@ -119,8 +118,8 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile, filters }) => {
 
       {/* Legenda */}
       <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--fg-3)", margin: "4px 0 8px" }}>
-        <span><span style={{ display: "inline-block", width: 12, height: 8, background: "var(--green)", borderRadius: 2, verticalAlign: "middle", marginRight: 4 }} />Líquido do dia (entra − sai)</span>
-        <span><span style={{ display: "inline-block", width: 14, height: 2, background: "var(--cyan)", verticalAlign: "middle", marginRight: 4 }} />Saldo acumulado</span>
+        <span><span style={{ display: "inline-block", width: 12, height: 8, background: "var(--green)", borderRadius: 2, verticalAlign: "middle", marginRight: 4 }} />Saldo positivo no dia</span>
+        <span><span style={{ display: "inline-block", width: 12, height: 8, background: "var(--red)", borderRadius: 2, verticalAlign: "middle", marginRight: 4 }} />Saldo negativo no dia</span>
       </div>
 
       <div style={{ position: "relative" }}
@@ -134,25 +133,21 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile, filters }) => {
         onMouseLeave={() => setHover(null)}
       >
       <svg viewBox={`0 0 ${W} ${H}`} style={{ display: "block", width: "100%", height: "auto" }} preserveAspectRatio="none">
-        {/* baseline zero das barras */}
-        <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--border)" strokeWidth="1" />
-        {net.map((v, i) => {
-          if (!v) return null;
-          const yTop = v >= 0 ? yBar(v) : baseY;
+        {/* baseline zero (saldo negativo cruza pra baixo) */}
+        <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--red)" strokeOpacity={sMin < 0 ? 0.6 : 0.25} strokeDasharray="4 4" strokeWidth="1" />
+        {baseY > y0 + 8 && baseY < H - PADB && sMin < 0 && <text x={x0 + plotW} y={baseY - 3} textAnchor="end" fontSize="9" fill="var(--red)" fontFamily="var(--font-mono)">R$ 0</text>}
+        {/* barras = saldo em contas no fim do dia (verde positivo / vermelho negativo) */}
+        {saldo.map((v, i) => {
+          const pos = v >= 0;
+          const yTop = pos ? yBar(v) : baseY;
           const h = Math.abs(yBar(v) - baseY);
-          const col = v >= 0 ? "var(--green)" : "var(--red)";
-          return (
-            <g key={i}>
-              <rect x={cx(i) - bw / 2} y={yTop} width={bw} height={Math.max(1, h)} rx="1.5" fill={col} opacity="0.85" />
-              {showLbls && (
-                <text x={cx(i)} y={v >= 0 ? yTop - 3 : yTop + h + 9} textAnchor="middle" fontSize="7" fill={col} fontFamily="var(--font-mono)">{fmtK(v)}</text>
-              )}
-            </g>
-          );
+          const col = pos ? "var(--green)" : "var(--red)";
+          return <rect key={i} x={cx(i) - bw / 2} y={yTop} width={bw} height={Math.max(1, h)} rx="1.5" fill={col} opacity={hover && hover.i === i ? 1 : 0.82} />;
         })}
-        {/* linha de saldo */}
-        <path d={saldoPath} fill="none" stroke="var(--cyan)" strokeWidth="1.8" />
-        {saldo.map((v, i) => <circle key={i} cx={cx(i)} cy={ySal(v)} r={isMobile ? 1.2 : 1.8} fill="var(--cyan)" />)}
+        {/* marcador do 1º dia negativo */}
+        {negIdx >= 0 && (
+          <line x1={cx(negIdx)} y1={y0} x2={cx(negIdx)} y2={y0 + plotH} stroke="var(--red)" strokeDasharray="3 3" strokeWidth="1.2" />
+        )}
         {/* rótulos de dia (a cada N pra não poluir) */}
         {net.map((_, i) => {
           const everyN = nDays > 20 ? (isMobile ? 5 : 2) : 1;
@@ -178,10 +173,10 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile, filters }) => {
             fontFamily: "var(--font-mono)", whiteSpace: "nowrap",
           }}>
             <div style={{ fontSize: 11, color: "var(--fg-3)", marginBottom: 4 }}>{dataStr}</div>
-            <div style={{ fontSize: 12, color: "var(--fg-2)" }}>Líquido do dia</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: liq >= 0 ? "var(--green)" : "var(--red)", marginBottom: 6 }}>{fmt(liq)}</div>
-            <div style={{ fontSize: 12, color: "var(--fg-2)" }}>Saldo acumulado</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--cyan)" }}>{fmt(saldo[hover.i] || 0)}</div>
+            <div style={{ fontSize: 12, color: "var(--fg-2)" }}>Saldo em contas</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: (saldo[hover.i] || 0) >= 0 ? "var(--green)" : "var(--red)", marginBottom: 6 }}>{fmt(saldo[hover.i] || 0)}</div>
+            <div style={{ fontSize: 12, color: "var(--fg-2)" }}>Líquido do dia (entra − sai)</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: liq >= 0 ? "var(--green)" : "var(--red)" }}>{fmt(liq)}</div>
           </div>
         );
       })()}
@@ -1014,7 +1009,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
           {/* Mini chart de saldo dia-a-dia projetado */}
           {saldoDiario.length > 1 && (
             <div className="tesouraria-mini-chart">
-              <SaldoDiarioBars pontos={saldoDiario} saldoInicial={saldoBaseInicial} fmt={B.fmt} isMobile={isMobile} />
+              <SaldoProjetadoChart pontos={saldoDiario} saldoInicial={saldoBaseInicial} />
             </div>
           )}
           <div className="t-scroll" style={{ maxHeight: 380 }}>
