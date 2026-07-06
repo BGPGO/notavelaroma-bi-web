@@ -264,6 +264,9 @@ const SaldoProjetadoCard = ({ B, isMobile }) => {
   const baseY = yBar(0);
   const saldoFim = serie.length ? serie[serie.length - 1].saldo : startBalance;
   const negIdx = serie.findIndex(s => s.saldo < 0);
+  const minIdx = vals.length ? vals.indexOf(Math.min(...vals)) : -1;
+  const gridY = [0.25, 0.5, 0.75].map(f => y0 + plotH * f);
+  const keyLabels = new Set([0, serie.length - 1, minIdx, negIdx].filter(i => i >= 0));
 
   return (
     <div className="card">
@@ -305,15 +308,30 @@ const SaldoProjetadoCard = ({ B, isMobile }) => {
         onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); const relX = e.clientX - r.left; const i = Math.min(serie.length - 1, Math.max(0, Math.floor((relX / r.width) * serie.length))); setHover({ i, x: relX, y: e.clientY - r.top, w: r.width }); }}
         onMouseLeave={() => setHover(null)}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', width: '100%', height: 'auto' }} preserveAspectRatio="none">
-          <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--red)" strokeOpacity={loV < 0 ? 0.6 : 0.25} strokeDasharray="4 4" strokeWidth="1" />
+          {/* grade recessiva */}
+          {gridY.map((gy, k) => <line key={'g' + k} x1={x0} y1={gy} x2={x0 + plotW} y2={gy} stroke="var(--border)" strokeOpacity="0.35" strokeWidth="1" />)}
+          {/* baseline zero */}
+          <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--red)" strokeOpacity={loV < 0 ? 0.65 : 0.3} strokeDasharray="4 4" strokeWidth="1" />
           {loV < 0 && baseY > y0 + 8 && baseY < H - PADB && <text x={x0 + plotW} y={baseY - 3} textAnchor="end" fontSize="9" fill="var(--red)" fontFamily="var(--font-mono)">R$ 0</text>}
-          {serie.map((s, i) => { const pos = s.saldo >= 0; const yT = pos ? yBar(s.saldo) : baseY; const h = Math.abs(yBar(s.saldo) - baseY); const col = pos ? 'var(--green)' : 'var(--red)'; return (
-            <g key={i}>
-              <rect x={cx(i) - bw / 2} y={yT} width={bw} height={Math.max(1, h)} rx="1.5" fill={col} opacity={hover && hover.i === i ? 1 : 0.85} />
-              {!isMobile && dias <= 60 && <text x={cx(i)} y={pos ? yT - 3 : yT + h + 9} textAnchor="middle" fontSize="7" fill={col} fontFamily="var(--font-mono)">{fmtK(s.saldo)}</text>}
-            </g>
-          ); })}
-          {negIdx >= 0 && <line x1={cx(negIdx)} y1={y0} x2={cx(negIdx)} y2={y0 + plotH} stroke="var(--red)" strokeDasharray="3 3" strokeWidth="1.2" />}
+          {/* guia vertical no dia sob o cursor */}
+          {hover && serie[hover.i] && <line x1={cx(hover.i)} y1={y0} x2={cx(hover.i)} y2={y0 + plotH} stroke="var(--cyan)" strokeOpacity="0.45" strokeWidth="1" />}
+          {/* barras — cantos arredondados, transição suave, hover destaca */}
+          {serie.map((s, i) => {
+            const pos = s.saldo >= 0; const yT = pos ? yBar(s.saldo) : baseY;
+            const h = Math.max(1, Math.abs(yBar(s.saldo) - baseY));
+            const col = pos ? 'var(--green)' : 'var(--red)';
+            const op = hover ? (hover.i === i ? 1 : 0.4) : 0.9;
+            return <rect key={i} x={cx(i) - bw / 2} y={yT} width={bw} height={h} rx={Math.min(bw / 2, 3)} ry={Math.min(bw / 2, 3)} fill={col} opacity={op} style={{ transition: 'y .3s ease, height .3s ease, opacity .12s ease' }} />;
+          })}
+          {/* marcador do 1º dia negativo */}
+          {negIdx >= 0 && <line x1={cx(negIdx)} y1={y0} x2={cx(negIdx)} y2={y0 + plotH} stroke="var(--red)" strokeDasharray="3 3" strokeWidth="1.2" opacity="0.7" />}
+          {/* rótulos seletivos: hoje, fim do horizonte, dia mais baixo e 1º vermelho */}
+          {serie.map((s, i) => {
+            if (!keyLabels.has(i)) return null;
+            const pos = s.saldo >= 0; const yT = pos ? yBar(s.saldo) : baseY; const h = Math.abs(yBar(s.saldo) - baseY);
+            return <text key={'l' + i} x={cx(i)} y={pos ? yT - 4 : yT + h + 10} textAnchor="middle" fontSize="8" fontWeight="600" fill={s.saldo >= 0 ? 'var(--fg-2)' : 'var(--red)'} fontFamily="var(--font-mono)">{fmtK(s.saldo)}</text>;
+          })}
+          {/* rótulos de dia */}
           {serie.map((s, i) => { const everyN = serie.length > 40 ? (isMobile ? 10 : 5) : (isMobile ? 4 : 2); if (i % everyN !== 0 && i !== serie.length - 1) return null; return <text key={'x' + i} x={cx(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="var(--fg-3)" fontFamily="var(--font-mono)">{s.label}</text>; })}
         </svg>
         {hover && serie[hover.i] && (() => { const flip = hover.x > hover.w * 0.6; const s = serie[hover.i]; return (
