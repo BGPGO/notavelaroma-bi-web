@@ -386,7 +386,7 @@ const PageOrcamento = ({ filters, statusFilter, drilldown, setDrilldown, year, m
         </div>
       </div>
 
-      <DrilldownBadge drilldown={drilldown} onClear={() => setDrilldown(null)} />
+      <DrilldownBadge drilldown={drilldown} setDrilldown={setDrilldown} onClear={() => setDrilldown(null)} />
 
       <div className="kpi-row">
         <KpiTile tone="green" label="Receita orçada (/mês)" value={fmtBRL(orcRec)} hint={`Melhor mês: ${MONTHS_FULL[ORC.melhor_mes_idx||0] || "—"}`} />

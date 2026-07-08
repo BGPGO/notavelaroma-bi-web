@@ -32,14 +32,16 @@ const SectionHeading = ({ strong, soft }) => (
 );
 
 // Side-by-side monthly bars (Receita green / Despesa red) with floating value chips
-const OverviewBars = ({ data, height = 220, year = "2026", onBarClick, activeIdx }) => {
+const OverviewBars = ({ data, height = 220, year = "2026", onBarClick, activeIdx, activeIdxs }) => {
   const B = window.BIT;
   const max = Math.max(...data.map(d => Math.max(d.receita, d.despesa)), 1);
   const niceMax = Math.max(Math.ceil(max / 200000) * 200000, 200000);
   const ticks = [];
   for (let v = 0; v <= niceMax; v += 200000) ticks.push(v);
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1, 3);
-  const hasActive = activeIdx != null && activeIdx >= 0;
+  const actSet = Array.isArray(activeIdxs) ? activeIdxs : (activeIdx != null && activeIdx >= 0 ? [activeIdx] : []);
+  const hasActive = actSet.length > 0;
+  const isActive = (i) => actSet.indexOf(i) >= 0;
 
   return (
     <div className="ov-bars">
@@ -56,11 +58,11 @@ const OverviewBars = ({ data, height = 220, year = "2026", onBarClick, activeIdx
             const rH = (d.receita / niceMax) * 100;
             const dH = (d.despesa / niceMax) * 100;
             const cls = "ov-bar-col" + (onBarClick ? " clickable" : "") +
-              (hasActive && i === activeIdx ? " active" : "") +
-              (hasActive && i !== activeIdx ? " dimmed" : "");
+              (hasActive && isActive(i) ? " active" : "") +
+              (hasActive && !isActive(i) ? " dimmed" : "");
             return (
               <div key={i} className={cls}
-                onClick={onBarClick ? () => onBarClick(d, i) : undefined}
+                onClick={onBarClick ? (e) => onBarClick(d, i, e) : undefined}
                 style={onBarClick ? { cursor: "pointer" } : undefined}
               >
                 <div className="ov-bar-stack">
@@ -170,20 +172,13 @@ const PageOverview = ({ filters, setFilters, onOpenFilters, statusFilter, drilld
   const B = useMemo(() => window.getBit(statusFilter, drilldown, year, month, filters), [statusFilter, drilldown, year, month, filters]);
   const [indicator, setIndicator] = useState("Valor líquido");
   const refYear = (B.META && B.META.ref_year) || new Date().getFullYear();
-  // descobre o indice ativo se o drilldown for de mes (pra destacar a barra)
-  const activeMonthIdx = (drilldown && drilldown.type === "mes")
-    ? B.MONTHS_FULL.findIndex(mn => {
-        // drilldown.value formato "YYYY-MM" e MONTHS_FULL e ["janeiro","fevereiro",...]
-        const mm = String(parseInt(drilldown.value.slice(5, 7), 10)).padStart(2, "0");
-        const idx = parseInt(mm, 10) - 1;
-        return B.MONTHS_FULL.indexOf(mn) === idx;
-      })
-    : -1;
-  const handleBarMes = (d, i) => {
+  // índices dos meses ativos (multi-select). drilldown.value = "YYYY-MM".
+  const activeMonthIdxs = window.ddValues(drilldown, "mes").map(v => parseInt(v.slice(5, 7), 10) - 1).filter(i => i >= 0);
+  const handleBarMes = (d, i, e) => {
     const mm = String(i + 1).padStart(2, "0");
     const ym = `${refYear}-${mm}`;
     const lbl = `${d.m.charAt(0).toUpperCase() + d.m.slice(1, 3)}/${refYear}`;
-    setDrilldown({ type: "mes", value: ym, label: lbl });
+    setDrilldown(prev => window.toggleDrilldown(prev, { type: "mes", value: ym, label: lbl }, e && (e.ctrlKey || e.metaKey)));
   };
 
   // Indicator series for the toggle chart (derived da MONTH_DATA real)
@@ -273,7 +268,7 @@ const PageOverview = ({ filters, setFilters, onOpenFilters, statusFilter, drilld
         </div>
       </div>
 
-      <DrilldownBadge drilldown={drilldown} onClear={() => setDrilldown(null)} />
+      <DrilldownBadge drilldown={drilldown} setDrilldown={setDrilldown} onClear={() => setDrilldown(null)} />
 
       <div className="row" style={{ gridTemplateColumns: "minmax(280px, 3fr) minmax(0, 9fr)" }}>
         {/* LEFT: Indicadores Principais + Resultado Geral */}
@@ -317,7 +312,7 @@ const PageOverview = ({ filters, setFilters, onOpenFilters, statusFilter, drilld
                 <span className="val">{B.fmtK(B.TOTAL_DESPESA)}</span>
               </span>
             </div>
-            <OverviewBars data={B.MONTH_DATA} height={220} year={String(refYear)} onBarClick={handleBarMes} activeIdx={activeMonthIdx} />
+            <OverviewBars data={B.MONTH_DATA} height={220} year={String(refYear)} onBarClick={handleBarMes} activeIdxs={activeMonthIdxs} />
           </div>
 
           <div className="card">
@@ -356,14 +351,13 @@ const PageIndicators = ({ filters, statusFilter, drilldown, setDrilldown, year, 
   // sem segregacao de impostos no Omie sem mapeamento de categorias, deixamos 0 e mostramos "—" se nao houver dado
   const margemSeries = B.MONTH_DATA.map(m => m.receita > 0 ? ((m.receita - m.despesa) / m.receita) * 100 : 0);
 
-  const handleBarMes = (d, i) => {
+  const handleBarMes = (d, i, e) => {
     const mm = String(i + 1).padStart(2, "0");
     const ym = `${refYear}-${mm}`;
     const lbl = `${(d.m || "").charAt(0).toUpperCase() + (d.m || "").slice(1, 3)}/${refYear}`;
-    setDrilldown({ type: "mes", value: ym, label: lbl });
+    setDrilldown(prev => window.toggleDrilldown(prev, { type: "mes", value: ym, label: lbl }, e && (e.ctrlKey || e.metaKey)));
   };
-  const activeMonthIdx = (drilldown && drilldown.type === "mes")
-    ? parseInt(drilldown.value.slice(5, 7), 10) - 1 : -1;
+  const activeMonthIdxs = window.ddValues(drilldown, "mes").map(v => parseInt(v.slice(5, 7), 10) - 1).filter(i => i >= 0);
 
   return (
     <div className="page">
@@ -376,7 +370,7 @@ const PageIndicators = ({ filters, statusFilter, drilldown, setDrilldown, year, 
         </div>
       </div>
 
-      <DrilldownBadge drilldown={drilldown} onClear={() => setDrilldown(null)} />
+      <DrilldownBadge drilldown={drilldown} setDrilldown={setDrilldown} onClear={() => setDrilldown(null)} />
 
       <div className="metric-strip">
         <div className="metric">
@@ -418,7 +412,7 @@ const PageIndicators = ({ filters, statusFilter, drilldown, setDrilldown, year, 
         </div>
         <div className="card">
           <h2 className="card-title">Receita vs Despesa por mês</h2>
-          <MonthlyBars data={B.MONTH_DATA} height={240} onBarClick={handleBarMes} activeIdx={activeMonthIdx} />
+          <MonthlyBars data={B.MONTH_DATA} height={240} onBarClick={handleBarMes} activeIdxs={activeMonthIdxs} />
         </div>
       </div>
     </div>
@@ -440,20 +434,20 @@ const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
   const refYear = (B.META && B.META.ref_year) || new Date().getFullYear();
 
   // Drilldown handlers
-  const handleBarMes = (v, i) => {
+  const ddCtrl = (e) => e && (e.ctrlKey || e.metaKey);
+  const handleBarMes = (v, i, _label, e) => {
     const mm = String(i + 1).padStart(2, "0");
     const ym = `${refYear}-${mm}`;
     const mn = B.MONTHS_FULL[i] || "";
-    setDrilldown({ type: "mes", value: ym, label: `${mn.charAt(0).toUpperCase() + mn.slice(1, 3)}/${refYear}` });
+    setDrilldown(prev => window.toggleDrilldown(prev, { type: "mes", value: ym, label: `${mn.charAt(0).toUpperCase() + mn.slice(1, 3)}/${refYear}` }, ddCtrl(e)));
   };
-  const handleCategoria = (it) => setDrilldown({ type: "categoria", value: it.name, label: it.name });
-  const handleCliente = (it) => setDrilldown({ type: "cliente", value: it.name, label: it.name });
+  const handleCategoria = (it, idx, e) => setDrilldown(prev => window.toggleDrilldown(prev, { type: "categoria", value: it.name, label: it.name }, ddCtrl(e)));
+  const handleCliente = (it, idx, e) => setDrilldown(prev => window.toggleDrilldown(prev, { type: "cliente", value: it.name, label: it.name }, ddCtrl(e)));
 
-  // Indices ativos para destaque
-  const activeMonthIdx = (drilldown && drilldown.type === "mes")
-    ? parseInt(drilldown.value.slice(5, 7), 10) - 1 : -1;
-  const activeCategoria = (drilldown && drilldown.type === "categoria") ? drilldown.value : null;
-  const activeCliente = (drilldown && drilldown.type === "cliente") ? drilldown.value : null;
+  // Indices/nomes ativos para destaque (multi-select)
+  const activeMonthIdxs = window.ddValues(drilldown, "mes").map(v => parseInt(v.slice(5, 7), 10) - 1).filter(i => i >= 0);
+  const activeCategorias = window.ddValues(drilldown, "categoria");
+  const activeClientes = window.ddValues(drilldown, "cliente");
 
   // Extrato filtrado de receitas (usa EXTRATO_RECEITAS pre-separado pelo build,
   // fallback pro filtro inline pra compat com BIT base)
@@ -478,7 +472,7 @@ const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
         </div>
       </div>
 
-      <DrilldownBadge drilldown={drilldown} onClear={() => setDrilldown(null)} />
+      <DrilldownBadge drilldown={drilldown} setDrilldown={setDrilldown} onClear={() => setDrilldown(null)} />
 
       <div className="row row-4">
         <KpiTile label="Receita total" value={B.fmt(B.TOTAL_RECEITA)} sparkValues={B.MONTH_DATA.map(m => m.receita)} sparkColor="var(--green)" tone="green" noPrefix />
@@ -490,18 +484,18 @@ const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
       <div className="card">
         <h2 className="card-title">Receita por mês</h2>
         <SingleBars values={B.MONTH_DATA.map(m => m.receita)} labels={B.MONTHS_FULL} color="green" height={240}
-          onBarClick={handleBarMes} activeIdx={activeMonthIdx} />
+          onBarClick={handleBarMes} activeIdxs={activeMonthIdxs} />
       </div>
 
       <div className="row" style={{ gridTemplateColumns: "minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr)" }}>
         <div className="card">
           <h2 className="card-title">Receita por categoria</h2>
-          <BarList items={B.RECEITA_CATEGORIAS} color="green" onItemClick={handleCategoria} activeName={activeCategoria} />
+          <BarList items={B.RECEITA_CATEGORIAS} color="green" onItemClick={handleCategoria} activeNames={activeCategorias} />
         </div>
 
         <div className="card">
           <div className="card-title-row">
-            <h2 className="card-title">Extrato de receitas {drilldown ? `· ${drilldown.label}` : ""}</h2>
+            <h2 className="card-title">Extrato de receitas {window.ddArray(drilldown).length ? `· ${window.ddArray(drilldown).map(d => d.label).join(" + ")}` : ""}</h2>
           </div>
           <div className="t-scroll">
             <table className="t">
@@ -531,7 +525,7 @@ const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
 
         <div className="card">
           <h2 className="card-title">Receita por cliente</h2>
-          <BarList items={B.RECEITA_CLIENTES} color="green" onItemClick={handleCliente} activeName={activeCliente} />
+          <BarList items={B.RECEITA_CLIENTES} color="green" onItemClick={handleCliente} activeNames={activeClientes} />
         </div>
       </div>
     </div>
@@ -548,19 +542,19 @@ const PageDespesa = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
   const [range, setRange] = useState("12M");
   const refYear = (B.META && B.META.ref_year) || new Date().getFullYear();
 
-  const handleBarMes = (v, i) => {
+  const ddCtrl = (e) => e && (e.ctrlKey || e.metaKey);
+  const handleBarMes = (v, i, _label, e) => {
     const mm = String(i + 1).padStart(2, "0");
     const ym = `${refYear}-${mm}`;
     const mn = B.MONTHS_FULL[i] || "";
-    setDrilldown({ type: "mes", value: ym, label: `${mn.charAt(0).toUpperCase() + mn.slice(1, 3)}/${refYear}` });
+    setDrilldown(prev => window.toggleDrilldown(prev, { type: "mes", value: ym, label: `${mn.charAt(0).toUpperCase() + mn.slice(1, 3)}/${refYear}` }, ddCtrl(e)));
   };
-  const handleCategoria = (it) => setDrilldown({ type: "categoria", value: it.name, label: it.name });
-  const handleFornecedor = (it) => setDrilldown({ type: "fornecedor", value: it.name, label: it.name });
+  const handleCategoria = (it, idx, e) => setDrilldown(prev => window.toggleDrilldown(prev, { type: "categoria", value: it.name, label: it.name }, ddCtrl(e)));
+  const handleFornecedor = (it, idx, e) => setDrilldown(prev => window.toggleDrilldown(prev, { type: "fornecedor", value: it.name, label: it.name }, ddCtrl(e)));
 
-  const activeMonthIdx = (drilldown && drilldown.type === "mes")
-    ? parseInt(drilldown.value.slice(5, 7), 10) - 1 : -1;
-  const activeCategoria = (drilldown && drilldown.type === "categoria") ? drilldown.value : null;
-  const activeFornecedor = (drilldown && drilldown.type === "fornecedor") ? drilldown.value : null;
+  const activeMonthIdxs = window.ddValues(drilldown, "mes").map(v => parseInt(v.slice(5, 7), 10) - 1).filter(i => i >= 0);
+  const activeCategorias = window.ddValues(drilldown, "categoria");
+  const activeFornecedores = window.ddValues(drilldown, "fornecedor");
 
   // Extrato filtrado de despesas (usa EXTRATO_DESPESAS pre-separado, fallback inline)
   const extratoDespesas = B.EXTRATO_DESPESAS || B.EXTRATO.filter(e => e[4] < 0);
@@ -580,7 +574,7 @@ const PageDespesa = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
         </div>
       </div>
 
-      <DrilldownBadge drilldown={drilldown} onClear={() => setDrilldown(null)} />
+      <DrilldownBadge drilldown={drilldown} setDrilldown={setDrilldown} onClear={() => setDrilldown(null)} />
 
       <div className="row row-4">
         <KpiTile label="Despesas totais" value={B.fmt(totalDespesa)} sparkValues={B.MONTH_DATA.map(m => m.despesa)} sparkColor="var(--red)" tone="red" noPrefix />
@@ -592,20 +586,20 @@ const PageDespesa = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
       <div className="card">
         <h2 className="card-title">Despesa por mês</h2>
         <SingleBars values={B.MONTH_DATA.map(m => m.despesa)} labels={B.MONTHS_FULL} color="red" height={240}
-          onBarClick={handleBarMes} activeIdx={activeMonthIdx} />
+          onBarClick={handleBarMes} activeIdxs={activeMonthIdxs} />
       </div>
 
       <div className="row" style={{ gridTemplateColumns: "minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr)" }}>
         <div className="card">
           <h2 className="card-title">Despesas por categoria</h2>
           <div style={{ maxHeight: 500, overflowY: "auto", paddingRight: 4 }}>
-            <BarList items={B.DESPESA_CATEGORIAS} color="red" onItemClick={handleCategoria} activeName={activeCategoria} />
+            <BarList items={B.DESPESA_CATEGORIAS} color="red" onItemClick={handleCategoria} activeNames={activeCategorias} />
           </div>
         </div>
 
         <div className="card">
           <div className="card-title-row">
-            <h2 className="card-title">Extrato de despesas {drilldown ? `· ${drilldown.label}` : ""}</h2>
+            <h2 className="card-title">Extrato de despesas {window.ddArray(drilldown).length ? `· ${window.ddArray(drilldown).map(d => d.label).join(" + ")}` : ""}</h2>
           </div>
           <div className="t-scroll">
             <table className="t">
@@ -636,7 +630,7 @@ const PageDespesa = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
         <div className="card">
           <h2 className="card-title">Despesas por fornecedor</h2>
           <div style={{ maxHeight: 500, overflowY: "auto", paddingRight: 4 }}>
-            <BarList items={B.DESPESA_FORNECEDORES} color="red" onItemClick={handleFornecedor} activeName={activeFornecedor} />
+            <BarList items={B.DESPESA_FORNECEDORES} color="red" onItemClick={handleFornecedor} activeNames={activeFornecedores} />
           </div>
         </div>
       </div>

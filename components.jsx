@@ -318,10 +318,12 @@ const Header = ({ page, onToggleSidebar, statusFilter, setStatusFilter, year, se
 
 // vertical bars (kept)
 // Click handlers: onBarClick(monthData, idx). activeIdx adds .active class; outros ficam .dimmed
-const MonthlyBars = ({ data, height = 230, type = "both", showLabels = true, onBarClick, activeIdx }) => {
+const MonthlyBars = ({ data, height = 230, type = "both", showLabels = true, onBarClick, activeIdx, activeIdxs }) => {
   const max = Math.max(...data.map(d => Math.max(d.receita || 0, d.despesa || 0)));
   const grids = [0, 0.25, 0.5, 0.75, 1].map(p => p * max);
-  const hasActive = activeIdx != null && activeIdx >= 0;
+  const actSet = Array.isArray(activeIdxs) ? activeIdxs : (activeIdx != null && activeIdx >= 0 ? [activeIdx] : []);
+  const hasActive = actSet.length > 0;
+  const isActive = (i) => actSet.indexOf(i) >= 0;
   return (
     <div style={{ position: "relative" }}>
       <div className="vbar-axis" style={{ height: height - 24 }}>
@@ -333,11 +335,11 @@ const MonthlyBars = ({ data, height = 230, type = "both", showLabels = true, onB
           const rH = ((d.receita || 0) / max) * 100;
           const dH = ((d.despesa || 0) / max) * 100;
           const cls = "vbar-col" + (onBarClick ? " clickable" : "") +
-            (hasActive && i === activeIdx ? " active" : "") +
-            (hasActive && i !== activeIdx ? " dimmed" : "");
+            (hasActive && isActive(i) ? " active" : "") +
+            (hasActive && !isActive(i) ? " dimmed" : "");
           return (
             <div key={i} className={cls}
-              onClick={onBarClick ? () => onBarClick(d, i) : undefined}
+              onClick={onBarClick ? (e) => onBarClick(d, i, e) : undefined}
               style={onBarClick ? { cursor: "pointer" } : undefined}
             >
               <div className="stack">
@@ -361,19 +363,21 @@ const MonthlyBars = ({ data, height = 230, type = "both", showLabels = true, onB
   );
 };
 
-const SingleBars = ({ values, labels, color = "green", height = 200, onBarClick, activeIdx }) => {
+const SingleBars = ({ values, labels, color = "green", height = 200, onBarClick, activeIdx, activeIdxs }) => {
   const max = Math.max(...values);
-  const hasActive = activeIdx != null && activeIdx >= 0;
+  const actSet = Array.isArray(activeIdxs) ? activeIdxs : (activeIdx != null && activeIdx >= 0 ? [activeIdx] : []);
+  const hasActive = actSet.length > 0;
+  const isActive = (i) => actSet.indexOf(i) >= 0;
   return (
     <div className="vbar-chart" style={{ height }}>
       {values.map((v, i) => {
         const h = (v / max) * 100;
         const cls = "vbar-col" + (onBarClick ? " clickable" : "") +
-          (hasActive && i === activeIdx ? " active" : "") +
-          (hasActive && i !== activeIdx ? " dimmed" : "");
+          (hasActive && isActive(i) ? " active" : "") +
+          (hasActive && !isActive(i) ? " dimmed" : "");
         return (
           <div key={i} className={cls}
-            onClick={onBarClick ? () => onBarClick(v, i, labels[i]) : undefined}
+            onClick={onBarClick ? (e) => onBarClick(v, i, labels[i], e) : undefined}
             style={onBarClick ? { cursor: "pointer" } : undefined}
           >
             <div className="stack">
@@ -389,24 +393,26 @@ const SingleBars = ({ values, labels, color = "green", height = 200, onBarClick,
   );
 };
 
-const DailyBars = ({ values, color = "green", onBarClick, activeIdx }) => {
+const DailyBars = ({ values, color = "green", onBarClick, activeIdx, activeIdxs }) => {
   const max = Math.max(...values);
   const subPeaks = values.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v).slice(0, 3).map(o => o.i);
-  const hasActive = activeIdx != null && activeIdx >= 0;
+  const actSet = Array.isArray(activeIdxs) ? activeIdxs : (activeIdx != null && activeIdx >= 0 ? [activeIdx] : []);
+  const hasActive = actSet.length > 0;
+  const isActive = (i) => actSet.indexOf(i) >= 0;
   return (
     <div className="daily">
       <div className="daily-bars">
         {values.map((v, i) => {
           const h = (v / max) * 100;
           const cls = `b ${color === "red" ? "red" : ""} ${subPeaks.includes(i) ? "peak" : ""}` +
-            (hasActive && i === activeIdx ? " active" : "") +
-            (hasActive && i !== activeIdx ? " dimmed" : "");
+            (hasActive && isActive(i) ? " active" : "") +
+            (hasActive && !isActive(i) ? " dimmed" : "");
           return (
             <div key={i} className={cls}
               style={{ height: `${Math.max(h, 1)}%`, cursor: onBarClick ? "pointer" : undefined }}
               data-v={window.BIT.fmtK(v)}
               title={`Dia ${i + 1}: ${window.BIT.fmt(v)}`}
-              onClick={onBarClick ? () => onBarClick(i, v) : undefined}
+              onClick={onBarClick ? (e) => onBarClick(i, v, e) : undefined}
             />
           );
         })}
@@ -626,20 +632,21 @@ const Donut = ({ segments, size = 180, thickness = 22 }) => {
 
 // Horizontal bar list (with thin track) — used for bank balances/category
 // onItemClick(item, idx) torna a linha clicavel; activeName destaca a linha ativa.
-const BarListLine = ({ items, color = "cyan", onItemClick, activeName }) => {
+const BarListLine = ({ items, color = "cyan", onItemClick, activeName, activeNames }) => {
   const max = Math.max(...items.map(it => it.value));
-  const hasActive = activeName != null;
+  const actNames = Array.isArray(activeNames) ? activeNames : (activeName != null ? [activeName] : []);
+  const hasActive = actNames.length > 0;
   return (
     <div className="bar-list with-bars">
       {items.map((it, i) => {
         const w = (it.value / max) * 100;
-        const isActive = hasActive && it.name === activeName;
+        const isActive = hasActive && actNames.indexOf(it.name) >= 0;
         const cls = "bar-row" + (onItemClick ? " clickable" : "") +
           (isActive ? " active" : "") +
           (hasActive && !isActive ? " dimmed" : "");
         return (
           <div key={i} className={cls}
-            onClick={onItemClick ? () => onItemClick(it, i) : undefined}
+            onClick={onItemClick ? (e) => onItemClick(it, i, e) : undefined}
             style={onItemClick ? { cursor: "pointer" } : undefined}
           >
             <div className="row-meta">
@@ -676,13 +683,14 @@ const BarListLegend = ({ items, total }) => {
   );
 };
 
-const BarList = ({ items, color = "green", valueKey = "value", labelKey = "name", onItemClick, activeName }) => {
+const BarList = ({ items, color = "green", valueKey = "value", labelKey = "name", onItemClick, activeName, activeNames }) => {
   const mapped = items.map(it => ({ name: it[labelKey], value: it[valueKey] }));
   // se vier onItemClick, propaga o item ORIGINAL (nao o mapeado) pra page poder usar campos extras
+  // + repassa o event (Ctrl/Cmd) pra multi-select
   const handler = onItemClick
-    ? (mappedIt, idx) => onItemClick(items[idx], idx)
+    ? (mappedIt, idx, e) => onItemClick(items[idx], idx, e)
     : undefined;
-  return <BarListLine items={mapped} color={color} onItemClick={handler} activeName={activeName} />;
+  return <BarListLine items={mapped} color={color} onItemClick={handler} activeName={activeName} activeNames={activeNames} />;
 };
 
 const DivergingBars = ({ values, labels }) => {
@@ -1003,12 +1011,42 @@ const FiltersDrawer = ({ open, onClose, filters, setFilters }) => {
 
 // Chip que indica que o usuario filtrou um pedaco da tela clicando num grafico.
 // drilldown shape: { type: 'mes'|'categoria'|'cliente'|'fornecedor'|'dia', value, label }
-const DrilldownBadge = ({ drilldown, onClear }) => {
-  if (!drilldown) return null;
+// ===== Drilldown multi-select (estilo Power BI) =====
+// drilldown pode ser objeto único (legado) OU array de {type,value,label}.
+// ddArray normaliza pra array. ddValues extrai os valores de uma dimensão.
+function ddArray(dd) { return Array.isArray(dd) ? dd.filter(Boolean) : (dd ? [dd] : []); }
+function ddValues(dd, type) { return ddArray(dd).filter(d => d.type === type).map(d => d.value); }
+// toggleDrilldown: clique normal = seleção única (substitui / limpa se reclicar o mesmo);
+// clique com Ctrl/Cmd (additive) = adiciona/remove da seleção mantendo o resto. Retorna array ou null.
+function toggleDrilldown(current, item, additive) {
+  const arr = ddArray(current).slice();
+  const idx = arr.findIndex(d => d.type === item.type && d.value === item.value);
+  if (additive) {
+    if (idx >= 0) arr.splice(idx, 1); else arr.push(item);
+  } else {
+    if (arr.length === 1 && idx === 0) return null; // reclicar o único selecionado = limpa
+    return [item];
+  }
+  return arr.length ? arr : null;
+}
+window.ddArray = ddArray; window.ddValues = ddValues; window.toggleDrilldown = toggleDrilldown;
+
+const DrilldownBadge = ({ drilldown, onClear, setDrilldown }) => {
+  const arr = ddArray(drilldown);
+  if (!arr.length) return null;
+  const removeAt = (i) => { const next = arr.filter((_, j) => j !== i); setDrilldown ? setDrilldown(next.length ? next : null) : onClear(); };
   return (
     <div className="drilldown-badge">
-      <span className="dd-label">Filtrando: <b>{drilldown.label}</b></span>
-      <button className="dd-clear" onClick={onClear} aria-label="Limpar filtro">× Limpar</button>
+      <span className="dd-label">Filtrando:</span>
+      {arr.map((d, i) => (
+        <span key={i} className="dd-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 4px 2px 10px', borderRadius: 14, background: 'rgba(34,211,238,0.12)', border: '1px solid var(--cyan)', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+          <b>{d.label}</b>
+          <button className="dd-chip-x" onClick={() => removeAt(i)} aria-label={`Remover ${d.label}`}
+            style={{ cursor: 'pointer', border: 'none', background: 'transparent', color: 'var(--fg-2)', fontSize: 14, lineHeight: 1, padding: '0 4px' }}>×</button>
+        </span>
+      ))}
+      {arr.length > 1 && <button className="dd-clear" onClick={onClear} aria-label="Limpar todos os filtros">× Limpar tudo</button>}
+      {arr.length === 1 && <button className="dd-clear" onClick={onClear} aria-label="Limpar filtro">× Limpar</button>}
     </div>
   );
 };
@@ -1023,17 +1061,19 @@ function extratoMonthKey(dateStr) {
   return `${parts[2]}-${parts[1]}`;
 }
 function applyDrilldown(extrato, dd) {
-  if (!dd || !Array.isArray(extrato)) return extrato;
-  if (dd.type === "mes") {
-    return extrato.filter(e => extratoMonthKey(e[0]) === dd.value);
-  }
-  if (dd.type === "categoria") {
-    return extrato.filter(e => e[2] === dd.value);
-  }
-  if (dd.type === "cliente" || dd.type === "fornecedor") {
-    return extrato.filter(e => e[3] === dd.value);
-  }
-  return extrato;
+  const arr = ddArray(dd);
+  if (!arr.length || !Array.isArray(extrato)) return extrato;
+  // OR dentro da mesma dimensão, AND entre dimensões (igual filterTx).
+  const byType = {};
+  arr.forEach(d => { (byType[d.type] = byType[d.type] || []).push(d.value); });
+  let out = extrato;
+  Object.keys(byType).forEach(type => {
+    const vals = byType[type];
+    if (type === "mes") out = out.filter(e => vals.indexOf(extratoMonthKey(e[0])) >= 0);
+    else if (type === "categoria") out = out.filter(e => vals.indexOf(e[2]) >= 0);
+    else if (type === "cliente" || type === "fornecedor") out = out.filter(e => vals.indexOf(e[3]) >= 0);
+  });
+  return out;
 }
 
 Object.assign(window, {

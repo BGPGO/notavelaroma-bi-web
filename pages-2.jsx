@@ -373,14 +373,13 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
     return B.MONTH_DATA.map(m => (acc += (m.receita || 0)));
   }, [B.MONTH_DATA]);
   const refYear = (B.META && B.META.ref_year) || new Date().getFullYear();
-  const handleMonthHeader = (i) => {
+  const handleMonthHeader = (i, e) => {
     const mm = String(i + 1).padStart(2, "0");
     const ym = `${refYear}-${mm}`;
     const mn = B.MONTHS_FULL[i] || "";
-    setDrilldown({ type: "mes", value: ym, label: `${mn.charAt(0).toUpperCase() + mn.slice(1, 3)}/${refYear}` });
+    setDrilldown(prev => window.toggleDrilldown(prev, { type: "mes", value: ym, label: `${mn.charAt(0).toUpperCase() + mn.slice(1, 3)}/${refYear}` }, e && (e.ctrlKey || e.metaKey)));
   };
-  const activeMonthIdx = (drilldown && drilldown.type === "mes")
-    ? parseInt(drilldown.value.slice(5, 7), 10) - 1 : -1;
+  const activeMonthIdxs = window.ddValues(drilldown, "mes").map(v => parseInt(v.slice(5, 7), 10) - 1).filter(i => i >= 0);
 
   // ===== Cálculos pré-computados (usados pelas 4 variantes) =====
   const totalAnoReceita = useMemo(
@@ -418,13 +417,19 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
     return true;
   };
   const drillOk = (row) => {
-    if (!drilldown) return true;
-    if (drilldown.type === "mes") return row[1] === drilldown.value;
-    if (drilldown.type === "categoria") return row[3] === drilldown.value;
-    if (drilldown.type === "cliente") return row[0] === "r" && row[4] === drilldown.value;
-    if (drilldown.type === "fornecedor") return row[0] === "d" && row[7] === drilldown.value;
-    if (drilldown.type === "dia") return row[2] === drilldown.value;
-    return true;
+    const arr = window.ddArray(drilldown);
+    if (!arr.length) return true;
+    const byType = {};
+    arr.forEach(d => { (byType[d.type] = byType[d.type] || []).push(d.value); });
+    return Object.keys(byType).every(type => {
+      const vals = byType[type];
+      if (type === "mes") return vals.indexOf(row[1]) >= 0;
+      if (type === "categoria") return vals.indexOf(row[3]) >= 0;
+      if (type === "cliente") return row[0] === "r" && vals.indexOf(row[4]) >= 0;
+      if (type === "fornecedor") return row[0] === "d" && vals.indexOf(row[7]) >= 0;
+      if (type === "dia") return vals.indexOf(row[2]) >= 0;
+      return true;
+    });
   };
   const filtersOk = (row) => {
     if (filters && filters.categoria && filters.categoria !== "Todas categorias" && row[3] !== filters.categoria) return false;
@@ -657,13 +662,13 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
           <tr>
             <th className="fluxo-label-col" style={{ minWidth: isCompact ? 150 : 200 }}>Receita / Despesa</th>
             {months6.map((m, i) => {
-              const isActive = i === activeMonthIdx;
+              const isActive = activeMonthIdxs.indexOf(i) >= 0;
               return (
                 <React.Fragment key={m}>
                   <th className={`num clickable-th ${isActive ? "active" : ""}`}
-                      onClick={() => handleMonthHeader(i)}
+                      onClick={(e) => handleMonthHeader(i, e)}
                       style={{ cursor: "pointer" }}
-                      title="Clique para filtrar este mês">
+                      title="Clique para filtrar (Ctrl+clique soma vários meses)">
                     {m}
                   </th>
                   {isClassic && <th className="num">{view === "horizontal" ? "Δ%" : "%"}</th>}
@@ -850,7 +855,7 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
         </div>
       </div>
 
-      <DrilldownBadge drilldown={drilldown} onClear={() => setDrilldown(null)} />
+      <DrilldownBadge drilldown={drilldown} setDrilldown={setDrilldown} onClear={() => setDrilldown(null)} />
 
       <div className="metric-strip">
         <div className="metric">
@@ -1026,7 +1031,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
         </div>
       </div>
 
-      <DrilldownBadge drilldown={drilldown} onClear={() => setDrilldown(null)} />
+      <DrilldownBadge drilldown={drilldown} setDrilldown={setDrilldown} onClear={() => setDrilldown(null)} />
 
       <div className="row row-4">
         <KpiTile label="Recebido (PAGO)" value={B.fmt(recebido)} sparkValues={recDiaSeg} sparkColor="var(--green)" tone="green" noPrefix />

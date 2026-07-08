@@ -17213,12 +17213,22 @@ function filterTx(allTx, statusFilter, drilldown, regime, extraFilters) {
   out = out.filter(r => r[10] === rg);
   if (statusFilter === 'realizado') out = out.filter(r => r[6] === 1);
   else if (statusFilter === 'a_pagar_receber') out = out.filter(r => r[6] === 0);
+  // drilldown: aceita objeto único (legado) OU array (multi-select estilo Power BI).
+  // Regra: OR dentro da mesma dimensão (ex: 3 meses = soma), AND entre dimensões (fornecedor E mês).
   if (drilldown) {
-    if (drilldown.type === 'mes') out = out.filter(r => r[1] === drilldown.value);
-    else if (drilldown.type === 'categoria') out = out.filter(r => r[3] === drilldown.value);
-    else if (drilldown.type === 'cliente') out = out.filter(r => r[0] === 'r' && r[4] === drilldown.value);
-    else if (drilldown.type === 'fornecedor') out = out.filter(r => r[0] === 'd' && r[7] === drilldown.value);
-    else if (drilldown.type === 'dia') out = out.filter(r => r[2] === drilldown.value + 1);
+    var dds = (Array.isArray(drilldown) ? drilldown : [drilldown]).filter(function (d) { return d && d.type; });
+    if (dds.length) {
+      var byType = {};
+      for (var di = 0; di < dds.length; di++) { (byType[dds[di].type] = byType[dds[di].type] || []).push(dds[di].value); }
+      Object.keys(byType).forEach(function (type) {
+        var vals = byType[type];
+        if (type === 'mes') out = out.filter(function (r) { return vals.indexOf(r[1]) >= 0; });
+        else if (type === 'categoria') out = out.filter(function (r) { return vals.indexOf(r[3]) >= 0; });
+        else if (type === 'cliente') out = out.filter(function (r) { return r[0] === 'r' && vals.indexOf(r[4]) >= 0; });
+        else if (type === 'fornecedor') out = out.filter(function (r) { return r[0] === 'd' && vals.indexOf(r[7]) >= 0; });
+        else if (type === 'dia') out = out.filter(function (r) { return vals.indexOf(r[2] - 1) >= 0; });
+      });
+    }
   }
   // Extra filters: dateFrom, dateTo, categoria
   if (extraFilters) {
@@ -17333,7 +17343,8 @@ window.getBit = function (statusFilter, drilldown, year, month, filtersOrRegime,
     regime = filtersOrRegime;
   }
   let dd = drilldown;
-  if (!dd && month && month >= 1 && month <= 12) {
+  var ddLen = Array.isArray(dd) ? dd.filter(function (d) { return d && d.type; }).length : (dd ? 1 : 0);
+  if (!ddLen && month && month >= 1 && month <= 12) {
     const mm = String(month).padStart(2, '0');
     const ym = y + '-' + mm;
     dd = { type: 'mes', value: ym, label: ym };
