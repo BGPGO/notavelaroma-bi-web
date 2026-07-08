@@ -190,7 +190,11 @@ const FluxoDiarioCard = ({ B, statusFilter, year, isMobile, filters }) => {
 const SaldoProjetadoCard = ({ B, isMobile, filters }) => {
   const fmt = B.fmt;
   const saldos = (window.BIT_EXTRAS && window.BIT_EXTRAS.saldos) || null;
-  const headerEmp = (filters && filters.conta) || ''; // seletor de empresa do topo (slug)
+  const rawConta = (filters && filters.conta) || '';
+  // "Todas contas" é o default do DEFAULT_FILTERS (herdado do template) e não é slug de empresa.
+  // Sem tratar, o loop abaixo pula todos os slugs → contasList vazio → gráfico apaga.
+  // Mesma convenção que getBit/filterTx já usam (filters.conta !== "Todas contas").
+  const headerEmp = rawConta === 'Todas contas' ? '' : rawConta; // slug da empresa selecionada no topo
 
   const contasList = useMemo(() => {
     const out = [];
