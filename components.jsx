@@ -496,22 +496,23 @@ const StackedArea = ({ data, height = 320, showAxis = true }) => {
 };
 
 // Trend (line + area)
-const TrendChart = ({ values, labels, height = 160, color = "var(--cyan)", showPoints = true, showLabels = true, gradientId = "tg" }) => {
+const TrendChart = ({ values, labels, height = 160, color = "var(--cyan)", showPoints = true, showLabels = true, gradientId = "tg", interactive = false, valueFmt, tooltipLabel }) => {
+  const [hover, setHover] = useState(null);
   const w = 1000, h = height;
   const padX = 40, padY = 32;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
   const stepX = (w - padX * 2) / (values.length - 1);
-  const points = values.map((v, i) => {
-    const x = padX + i * stepX;
-    const y = padY + (1 - (v - min) / range) * (h - padY * 2);
-    return [x, y];
-  });
+  const yOf = (v) => padY + (1 - (v - min) / range) * (h - padY * 2);
+  const points = values.map((v, i) => [padX + i * stepX, yOf(v)]);
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
   const area = path + ` L ${points[points.length - 1][0]} ${h - padY} L ${points[0][0]} ${h - padY} Z`;
-  return (
-    <svg className="trend" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ height }}>
+  // Linha do zero quando a série cruza negativo (ex.: saldo acumulado começa vermelho).
+  const zeroY = (min < 0 && max > 0) ? yOf(0) : null;
+  const hi = (interactive && hover && points[hover.i]) ? hover.i : -1;
+  const svg = (
+    <svg className="trend" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ height, display: "block", width: "100%" }}>
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.30"/>
@@ -522,20 +523,43 @@ const TrendChart = ({ values, labels, height = 160, color = "var(--cyan)", showP
         const y = padY + (i / 3) * (h - padY * 2);
         return <line key={i} className="grid" x1={padX} y1={y} x2={w - padX} y2={y} />;
       })}
+      {zeroY != null && <line x1={padX} y1={zeroY} x2={w - padX} y2={zeroY} stroke="var(--red)" strokeOpacity="0.5" strokeDasharray="4 4" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
       <path d={area} fill={`url(#${gradientId})`} />
-      <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+      <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
       {showPoints && points.map((p, i) => (
         <g key={i}>
-          <circle cx={p[0]} cy={p[1]} r="3" fill={color}/>
+          <circle cx={p[0]} cy={p[1]} r="3" fill={color} opacity={hi < 0 || hi === i ? 1 : 0.55}/>
           {showLabels && (
-            <text className="point-label" x={p[0]} y={p[1] - 8} textAnchor="middle">{window.BIT.fmtK(values[i])}</text>
+            <text className="point-label" x={p[0]} y={p[1] - 8} textAnchor="middle" opacity={hi < 0 || hi === i ? 1 : 0.5}>{window.BIT.fmtK(values[i])}</text>
           )}
         </g>
       ))}
       {labels && labels.map((l, i) => (
         <text key={"x"+i} className="axis-text" x={padX + i * stepX} y={h - 6} textAnchor="middle">{l}</text>
       ))}
+      {hi >= 0 && (
+        <g>
+          <line x1={points[hi][0]} y1={padY} x2={points[hi][0]} y2={h - padY} stroke={color} strokeOpacity="0.5" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <circle cx={points[hi][0]} cy={points[hi][1]} r="4.5" fill={color} stroke="#0a141a" strokeWidth="2" />
+        </g>
+      )}
     </svg>
+  );
+  if (!interactive) return svg;
+  const fmtV = valueFmt || (window.BIT && window.BIT.fmt) || (v => v);
+  return (
+    <div style={{ position: "relative" }}
+      onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); const relX = e.clientX - r.left; const i = Math.min(values.length - 1, Math.max(0, Math.round((relX / r.width) * (values.length - 1)))); setHover({ i, x: relX, y: e.clientY - r.top, w: r.width }); }}
+      onMouseLeave={() => setHover(null)}>
+      {svg}
+      {hover && points[hover.i] && (() => { const flip = hover.x > hover.w * 0.6; return (
+        <div style={{ position: "absolute", left: hover.x, top: Math.max(0, hover.y - 12), transform: `translateY(-100%) translateX(${flip ? "calc(-100% - 14px)" : "14px"})`, pointerEvents: "none", zIndex: 5, background: "var(--surface-2, #10191f)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(0,0,0,0.45)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
+          {labels && labels[hover.i] != null && <div style={{ fontSize: 11, color: "var(--fg-3)", marginBottom: 4 }}>{labels[hover.i]}</div>}
+          {tooltipLabel && <div style={{ fontSize: 12, color: "var(--fg-2)" }}>{tooltipLabel}</div>}
+          <div style={{ fontSize: 17, fontWeight: 700, color: values[hover.i] >= 0 ? "var(--green)" : "var(--red)" }}>{fmtV(values[hover.i])}</div>
+        </div>
+      ); })()}
+    </div>
   );
 };
 
