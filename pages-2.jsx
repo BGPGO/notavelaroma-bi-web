@@ -927,6 +927,7 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
 const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown, setDrilldown, year, month }) => {
   const B = useMemo(() => window.getBit(statusFilter, drilldown, year, month, filters), [statusFilter, drilldown, year, month, filters]);
   const isMobile = useIsMobile();
+  const [semCDB, setSemCDB] = useState(false);
   const SEG = window.BIT_SEGMENTS || {};
   const segReal = useMemo(() => window.getBit("realizado", drilldown, year, month, filters), [drilldown, year, month, filters]);
   const segAPR = useMemo(() => window.getBit("a_pagar_receber", drilldown, year, month, filters), [drilldown, year, month, filters]);
@@ -942,6 +943,15 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
   const saldosMes = (SEG.tudo && SEG.tudo.SALDOS_MES) || B.SALDOS_MES;
   // Cumulativo (running balance): cada mês = saldo atual após acumular movimentos
   const SALDOS_REAIS = (window.BIT_EXTRAS && window.BIT_EXTRAS.saldos) || null;
+  // Total parado em contas CDB (investimento) — alimenta o toggle "Com/Sem CDB" do fluxo a vencer.
+  const cdbTotal = useMemo(() => {
+    if (!SALDOS_REAIS || !SALDOS_REAIS.last) return 0;
+    const emp = SALDOS_REAIS.last.empresas || {};
+    let t = 0;
+    for (const s of Object.keys(emp)) for (const n of Object.keys(emp[s].contas || {})) if (/cdb/i.test(n)) t += emp[s].contas[n];
+    return t;
+  }, [SALDOS_REAIS]);
+  const hasCDB = Math.abs(cdbTotal) > 0.005;
   // Saldo inicial do ano: usa o saldo real mais antigo da planilha (se disponível) menos os movimentos até o mês desse saldo.
   // Sem isso, parte de 0 e mostra apenas o efeito dos movimentos.
   const saldoInicial = (function() {
@@ -973,7 +983,8 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
     if (!d || !m || !y) return 0;
     return y * 10000 + m * 100 + d;
   };
-  const saldoBaseInicial = (SALDOS_REAIS && SALDOS_REAIS.last && SALDOS_REAIS.last.total) || 0;
+  const saldoBaseRaw = (SALDOS_REAIS && SALDOS_REAIS.last && SALDOS_REAIS.last.total) || 0;
+  const saldoBaseInicial = semCDB ? saldoBaseRaw - cdbTotal : saldoBaseRaw;
   const fluxoFuturoFull = useMemo(() => {
     // Lê direto de ALL_TX (não usa SEG.EXTRATO porque buildExtrato faz slice(0,200)
     // sortado DESC, perdendo lançamentos de 2026 quando há parcelas até 2033).
@@ -1166,11 +1177,23 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
         </div>
 
         <div className="card">
-          <h2 className="card-title">Fluxo a vencer (saldo projetado dia a dia)</h2>
+          <div className="card-title-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <h2 className="card-title" style={{ margin: 0 }}>Fluxo a vencer (saldo projetado dia a dia)</h2>
+            {hasCDB && (
+              <div className="seg" style={{ display: "flex", gap: 4 }}>
+                <button className={!semCDB ? "active" : ""} onClick={() => setSemCDB(false)}>Com CDB</button>
+                <button className={semCDB ? "active" : ""} onClick={() => setSemCDB(true)}>Sem CDB</button>
+              </div>
+            )}
+          </div>
           <div className="status-line" style={{ marginBottom: 8 }}>
             {fluxoFuturoFull.length} lançamentos a partir de hoje
             {SALDOS_REAIS && SALDOS_REAIS.last && (
-              <> · saldo inicial <b style={{ color: "var(--cyan)" }}>{B.fmt(SALDOS_REAIS.last.total)}</b></>
+              <> · saldo inicial <b style={{ color: "var(--cyan)" }}>{B.fmt(saldoBaseInicial)}</b>
+                {hasCDB && (semCDB
+                  ? <span style={{ color: "var(--fg-3)" }}> · CDB de fora ({B.fmt(cdbTotal)})</span>
+                  : <span style={{ color: "var(--fg-3)" }}> · inclui {B.fmt(cdbTotal)} em CDB</span>)}
+              </>
             )}
           </div>
           {/* Banner de risco de caixa */}
@@ -1209,7 +1232,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
           {/* Mini chart de saldo dia-a-dia projetado */}
           {saldoDiario.length > 1 && (
             <div className="tesouraria-mini-chart">
-              <SaldoProjetadoChart pontos={saldoDiario} saldoInicial={saldoBaseInicial} />
+              <SaldoProjetadoChart pontos={saldoDiario} saldoInicial={saldoBaseInicial} fmt={B.fmt} isMobile={isMobile} />
             </div>
           )}
           <div className="t-scroll" style={{ maxHeight: 380 }}>
@@ -1333,67 +1356,70 @@ const SaldoDiarioBars = ({ pontos, saldoInicial, fmt, isMobile, dias = 90 }) => 
 };
 
 // Mini chart SVG do saldo projetado dia-a-dia, com marcador da data crítica
-const SaldoProjetadoChart = ({ pontos, saldoInicial }) => {
-  const W = 800, H = 160, padX = 40, padTop = 16, padBottom = 32;
-  if (pontos.length < 2) return null;
-  const valores = [saldoInicial, ...pontos.map(p => p.saldo)];
-  const min = Math.min(0, ...valores);
-  const max = Math.max(...valores);
-  const range = (max - min) || 1;
-  const stepX = (W - padX * 2) / (pontos.length - 0);
-  const xOf = (i) => padX + i * stepX;
-  const yOf = (v) => padTop + (1 - (v - min) / range) * (H - padTop - padBottom);
-  const zeroY = yOf(0);
-  // Path da linha
-  const points = pontos.map((p, i) => `${xOf(i + 1)},${yOf(p.saldo)}`).join(" ");
-  const startPoint = `${xOf(0)},${yOf(saldoInicial)}`;
-  // Área pra preenchimento
-  const areaPath = `M ${startPoint} L ${points.replace(/ /g, " L ")} L ${xOf(pontos.length)},${yOf(min)} L ${xOf(0)},${yOf(min)} Z`;
-  // Detecta primeira data com saldo negativo
-  let critIdx = -1;
-  for (let i = 0; i < pontos.length; i++) {
-    if (pontos[i].saldo < 0) { critIdx = i; break; }
-  }
-  // Labels de data: a cada N pontos pra não amassar
-  const labelStep = Math.max(1, Math.ceil(pontos.length / 8));
+// Projeção do saldo a-vencer dia a dia — área + linha interativa (crosshair + tooltip),
+// no mesmo padrão visual do SaldoProjetadoCard. Marca Hoje, mínimo e 1º dia negativo.
+const SaldoProjetadoChart = ({ pontos, saldoInicial, fmt, isMobile }) => {
+  const [hover, setHover] = useState(null);
+  const f = fmt || (window.BIT && window.BIT.fmt) || (v => "R$ " + Math.round(v));
+  if (!pontos || pontos.length < 2) return null;
+  const serie = [{ saldo: saldoInicial, label: "Hoje", full: "Hoje" },
+    ...pontos.map(p => ({ saldo: p.saldo, label: (p.data || "").slice(0, 5), full: p.data }))];
+  const W = 1000, H = isMobile ? 190 : 240;
+  const PADT = 22, PADB = 26, PADL = 8, PADR = 8;
+  const plotW = W - PADL - PADR, plotH = H - PADT - PADB, x0 = PADL, y0 = PADT;
+  const vals = serie.map(s => s.saldo);
+  const hiV = Math.max(0, ...vals), loV = Math.min(0, ...vals);
+  const rng = (hiV - loV) || 1, pad = rng * 0.15;
+  const top = hiV + pad, bot = loV - pad;
+  const yOf = v => y0 + plotH * (top - v) / ((top - bot) || 1);
+  const step = plotW / Math.max(1, serie.length - 1);
+  const cx = i => x0 + step * i;
+  const baseY = yOf(0), bottomY = y0 + plotH;
+  const linePts = serie.map((s, i) => cx(i) + "," + yOf(s.saldo));
+  const areaPath = "M " + cx(0) + "," + bottomY + " L " + linePts.join(" L ") + " L " + cx(serie.length - 1) + "," + bottomY + " Z";
+  const linePath = "M " + linePts.join(" L ");
+  const minIdx = vals.indexOf(Math.min(...vals));
+  const critIdx = serie.findIndex(s => s.saldo < 0);
+  const gridY = [0.25, 0.5, 0.75].map(fr => y0 + plotH * fr);
+  const everyN = serie.length > 40 ? (isMobile ? 12 : 6) : (isMobile ? 5 : 3);
+  const negativo = loV < 0;
+  const col = negativo ? "var(--amber)" : "var(--cyan)";
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: H, marginBottom: 12 }}>
-      <defs>
-        <linearGradient id="ts-proj-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--cyan)" stopOpacity="0.32" />
-          <stop offset="100%" stopColor="var(--cyan)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {/* zero line */}
-      {zeroY > padTop && zeroY < H - padBottom && (
-        <line x1={padX} y1={zeroY} x2={W - 10} y2={zeroY} stroke="rgba(239, 68, 68, 0.4)" strokeDasharray="4 4" strokeWidth="1" />
-      )}
-      {zeroY > padTop && zeroY < H - padBottom && (
-        <text x={W - 10} y={zeroY - 4} textAnchor="end" fontSize="10" fill="var(--red)" fontFamily="var(--font-mono)">R$ 0</text>
-      )}
-      {/* área */}
-      <path d={areaPath} fill="url(#ts-proj-grad)" />
-      {/* linha */}
-      <polyline points={`${startPoint} ${points}`} fill="none" stroke="var(--cyan)" strokeWidth="2" />
-      {/* marcador inicial */}
-      <circle cx={xOf(0)} cy={yOf(saldoInicial)} r="4" fill="var(--cyan)" stroke="#0a141a" strokeWidth="2" />
-      <text x={xOf(0)} y={yOf(saldoInicial) - 8} textAnchor="middle" fontSize="10" fill="var(--cyan)" fontFamily="var(--font-mono)">Hoje</text>
-      {/* marcador crítico */}
-      {critIdx >= 0 && (
-        <g>
-          <line x1={xOf(critIdx + 1)} y1={padTop} x2={xOf(critIdx + 1)} y2={H - padBottom} stroke="var(--red)" strokeDasharray="3 3" strokeWidth="1.2" />
-          <circle cx={xOf(critIdx + 1)} cy={yOf(pontos[critIdx].saldo)} r="5" fill="var(--red)" stroke="#0a141a" strokeWidth="2" />
-          <text x={xOf(critIdx + 1)} y={padTop - 2} textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--red)">{pontos[critIdx].data}</text>
-        </g>
-      )}
-      {/* labels de data no eixo x */}
-      {pontos.map((p, i) => {
-        if (i % labelStep !== 0 && i !== pontos.length - 1) return null;
-        return (
-          <text key={i} x={xOf(i + 1)} y={H - 12} textAnchor="middle" fontSize="9" fill="var(--mute)">{p.data.slice(0, 5)}</text>
-        );
-      })}
-    </svg>
+    <div style={{ position: "relative" }}
+      onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); const relX = e.clientX - r.left; const i = Math.min(serie.length - 1, Math.max(0, Math.round((relX / r.width) * (serie.length - 1)))); setHover({ i, x: relX, y: e.clientY - r.top, w: r.width }); }}
+      onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ display: "block", width: "100%", height: "auto" }} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="ts-proj-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={col} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={col} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {gridY.map((gy, k) => <line key={"g" + k} x1={x0} y1={gy} x2={x0 + plotW} y2={gy} stroke="var(--border)" strokeOpacity="0.35" strokeWidth="1" />)}
+        {baseY > y0 && baseY < bottomY && <line x1={x0} y1={baseY} x2={x0 + plotW} y2={baseY} stroke="var(--red)" strokeOpacity={negativo ? 0.6 : 0.3} strokeDasharray="4 4" strokeWidth="1" />}
+        {negativo && baseY > y0 + 8 && baseY < bottomY && <text x={x0 + plotW} y={baseY - 3} textAnchor="end" fontSize="9" fill="var(--red)" fontFamily="var(--font-mono)">R$ 0</text>}
+        <path d={areaPath} fill="url(#ts-proj-grad)" />
+        <path d={linePath} fill="none" stroke={col} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {/* Hoje */}
+        <line x1={cx(0)} y1={y0} x2={cx(0)} y2={bottomY} stroke={col} strokeOpacity="0.35" strokeWidth="1" />
+        <text x={cx(0) + 4} y={y0 + 9} textAnchor="start" fontSize="9" fontWeight="600" fill={col} fontFamily="var(--font-mono)">Hoje</text>
+        {/* mínimo */}
+        {minIdx > 0 && <line x1={cx(minIdx)} y1={y0} x2={cx(minIdx)} y2={bottomY} stroke="var(--fg-3)" strokeDasharray="2 3" strokeWidth="1" opacity="0.55" vectorEffect="non-scaling-stroke" />}
+        {/* 1º dia negativo */}
+        {critIdx >= 0 && <line x1={cx(critIdx)} y1={y0} x2={cx(critIdx)} y2={bottomY} stroke="var(--red)" strokeDasharray="3 3" strokeWidth="1.2" opacity="0.75" vectorEffect="non-scaling-stroke" />}
+        {/* crosshair sob o cursor */}
+        {hover && serie[hover.i] && <line x1={cx(hover.i)} y1={y0} x2={cx(hover.i)} y2={bottomY} stroke={col} strokeOpacity="0.5" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
+        {/* rótulos de data */}
+        {serie.map((s, i) => { if (i === 0 || (i % everyN !== 0 && i !== serie.length - 1)) return null; return <text key={"x" + i} x={cx(i)} y={H - 8} textAnchor="middle" fontSize="8" fill="var(--fg-3)" fontFamily="var(--font-mono)">{s.label}</text>; })}
+      </svg>
+      {hover && serie[hover.i] && (() => { const flip = hover.x > hover.w * 0.6; const s = serie[hover.i]; return (
+        <div style={{ position: "absolute", left: hover.x, top: Math.max(0, hover.y - 12), transform: `translateY(-100%) translateX(${flip ? "calc(-100% - 14px)" : "14px"})`, pointerEvents: "none", zIndex: 5, background: "var(--surface-2, #10191f)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(0,0,0,0.45)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 11, color: "var(--fg-3)", marginBottom: 4 }}>{s.full}</div>
+          <div style={{ fontSize: 12, color: "var(--fg-2)" }}>Saldo projetado</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: s.saldo >= 0 ? "var(--green)" : "var(--red)" }}>{f(s.saldo)}</div>
+        </div>
+      ); })()}
+    </div>
   );
 };
 
