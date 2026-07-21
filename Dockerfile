@@ -14,7 +14,7 @@ COPY favicon.ico /usr/share/nginx/html/
 COPY assets /usr/share/nginx/html/assets
 
 # Reports IA pré-gerados (preliminar, gerado manualmente)
-COPY report.json /usr/share/nginx/html/
+COPY report*.json /usr/share/nginx/html/
 
 # Config minima — SPA fallback + gzip + cache de assets
 COPY nginx.conf /etc/nginx/conf.d/default.conf

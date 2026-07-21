@@ -1903,30 +1903,21 @@ const PageRelatorio = ({ year, statusFilter, filters }) => {
 
   if (error || !report) {
     const monthLabel = periodMonth > 0 ? MONTH_OPTIONS[periodMonth].label + ' de ' : '';
-    const cmd = periodMonth > 0
-      ? `node generate-report.cjs --force --year=${periodYear} --month=${periodMonth}`
-      : (periodYear === refYear ? `node generate-report.cjs --force` : `node generate-report.cjs --force --year=${periodYear}`);
     return (
       <div className="page">
         <div className="page-title">
           <div>
             <h1>Relatório IA</h1>
-            <div className="status-line">Relatório de {monthLabel}{periodYear} ainda não foi gerado</div>
+            <div className="status-line">Relatório de {monthLabel}{periodYear} ainda não disponível</div>
           </div>
           <div className="actions">{PeriodToolbar}</div>
         </div>
-        <div className="card">
-          <h2 className="card-title">Gerar agora</h2>
-          <p style={{ color: "var(--fg-2)", lineHeight: 1.6, marginTop: 12 }}>
-            Abra o terminal na pasta <code style={{ background: "var(--surface-2)", padding: "2px 6px", borderRadius: 4 }}>{"<cliente>"}-bi-web</code> e rode:
+        <div className="card" style={{ textAlign: "center", padding: 40 }}>
+          <div style={{ fontSize: 42, marginBottom: 12 }}>📄</div>
+          <h2 className="card-title" style={{ textAlign: "center" }}>Relatório em preparação</h2>
+          <p style={{ color: "var(--fg-2)", lineHeight: 1.6, marginTop: 12, maxWidth: 540, marginLeft: "auto", marginRight: "auto" }}>
+            O relatório executivo de <b>{monthLabel}{periodYear}</b> ainda não foi publicado. Selecione outro período no seletor acima — os períodos já disponíveis abrem na hora.
           </p>
-          <pre style={{ background: "var(--surface-2)", padding: 12, borderRadius: 8, marginTop: 12, fontSize: 13, color: "var(--cyan)" }}>
-            {cmd}
-          </pre>
-          <p style={{ color: "var(--fg-3)", fontSize: 12, marginTop: 12 }}>
-            ~30s + 1 chamada Anthropic. Depois de pronto, recarregue esta página (mantém o período selecionado).
-          </p>
-          {error && <p style={{ color: "var(--red)", fontSize: 12, marginTop: 8 }}>Detalhe: {error}</p>}
         </div>
       </div>
     );
