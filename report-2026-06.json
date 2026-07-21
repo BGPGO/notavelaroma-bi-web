@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-07-01T00:00:00.000Z",
+  "empresa": "Notável Aroma",
+  "periodo": "Junho/2026",
+  "year": 2026,
+  "month": 6,
+  "filter": "realizado",
+  "secoes": {
+    "visao_geral": {
+      "title": "Visão Geral",
+      "analysis": "Junho de 2026 fechou levemente no vermelho para a Notável Aroma, com receita realizada de R$ 253.084,60 e despesas de R$ 260.087,46, resultando em saldo líquido de caixa de R$ -7.002,86 e margem de -2,77%. No recorte de DRE operacional, o resultado ficou praticamente no zero a zero: R$ 392,50 positivos, com receita operacional de R$ 253.084,60, custos de R$ 181.718,92 e despesas operacionais de R$ 70.973,18. Ou seja, a operação se pagou, mas saídas não operacionais puxaram o caixa do mês para o negativo.\n\nDepois da recuperação de maio (+R$ 27.044,57), junho representou um passo atrás, ainda que suave. A receita recuou de R$ 277.874,77 para R$ 253.084,60 (-9%) enquanto as despesas subiram um pouco (de R$ 250.830,20 para R$ 260.087,46). Há ainda R$ 52.583,65 a receber e R$ 57.928,36 a pagar pendentes de junho, um saldo potencial líquido de -R$ 5.344,71. O mês não compromete o acumulado do ano (positivo em R$ 44.338,90), mas reforça que a margem segue apertada e sensível a oscilações de receita e custo de matéria-prima."
+    },
+    "receita": {
+      "title": "Receita",
+      "analysis": "A receita realizada de junho somou R$ 253.084,60, com Repasse de vendas em R$ 238.242,85 representando 94% do total. Complementaram Receita com vendas (R$ 8.256,55) e outras receitas não-DRE (R$ 6.585,20). Os principais canais foram Shopee (R$ 117.726,22), Shein (R$ 48.762,63), TikTok (R$ 30.433,81), Mercado Livre (R$ 21.500,00) e Amazon (R$ 19.820,19).\n\nA Shopee segue como principal canal, mas com participação de 47% — bem abaixo dos patamares de concentração do início do ano, sinal positivo de diversificação. Shein e TikTok, juntos, somaram R$ 79.196,44 (31% da receita), consolidando os canais alternativos como motor relevante. A queda de 9% na receita frente a maio veio principalmente de um mês mais fraco de Shopee; manter o ritmo de Shein, TikTok e Mercado Livre é o caminho para estabilizar o faturamento acima de R$ 270 mil."
+    },
+    "despesa": {
+      "title": "Despesa",
+      "analysis": "As despesas realizadas de junho totalizaram R$ 260.087,46. A Compra de matéria-prima liderou com R$ 140.441,79 (54% do total), seguida por Salários e encargos (R$ 17.935,11), Impostos sobre receita (R$ 17.014,29), Despesas com outros serviços contratados (R$ 12.996,26), Compra de mercadorias (R$ 12.748,86) e ADS (R$ 9.000,00). Os maiores fornecedores foram Ginger Fragrances (R$ 51.246,70), Leadpak (R$ 20.355,75), CLK Produtos Plásticos (R$ 19.134,83), Ornata Domus (R$ 17.211,25) e Simples Nacional (R$ 17.014,29).\n\nA matéria-prima voltou a subir (de R$ 134,8 mil em maio para R$ 140,4 mil), mantendo-se como o principal ponto de atenção na estrutura de custos — sozinha responde por mais da metade das saídas. O peso do Simples Nacional (R$ 17.014,29) acompanha o crescimento do faturamento tributável. Recomenda-se alinhar as compras de matéria-prima à previsão de vendas para evitar acúmulo de estoque, buscando trazer esse item para a faixa de R$ 110-125 mil mensais."
+    },
+    "fluxo_caixa": {
+      "title": "Fluxo de Caixa",
+      "analysis": "O fluxo de caixa de junho ficou negativo em R$ 7.002,86, com entradas de R$ 253.084,60 e saídas de R$ 260.087,46. Somam-se R$ 52.583,65 a receber e R$ 57.928,36 a pagar ainda pendentes do mês, com expectativa de fluxo líquido adicional de -R$ 5.344,71. O saldo acumulado dos seis meses do ano permanece positivo em R$ 44.338,90.\n\nApesar do resultado negativo, o mês foi de déficit contido — bem distante do tombo de abril (-R$ 55.555,60). O saldo acumulado ainda positivo dá fôlego, mas a sequência recuperação (maio) → recuo (junho) mostra que a operação ainda não engrenou uma geração de caixa consistente. A prioridade para julho é acelerar a conciliação dos recebíveis e segurar o custo de matéria-prima para voltar ao azul."
+    },
+    "tesouraria": {
+      "title": "Tesouraria",
+      "analysis": "A tesouraria de junho movimentou R$ 513.172,06 entre entradas e saídas, com posição líquida negativa de R$ 7.002,86. Entre os pendentes, R$ 52.583,65 a receber representam liquidez de curto prazo a ser convertida, enquanto R$ 57.928,36 a pagar exigem programação de caixa para os próximos dias.\n\nO mês reforça a importância de uma reserva mínima de tesouraria: com margens tão estreitas, qualquer atraso de recebível ou antecipação de pagamento pode virar o saldo. A recomendação é manter caixa suficiente para cobrir ao menos 30 dias de despesas operacionais (~R$ 250 mil) e priorizar a cobrança dos R$ 52,6 mil a receber antes de novos desembolsos não essenciais."
+    },
+    "comparativo": {
+      "title": "Comparativo",
+      "analysis": "No acumulado de janeiro a junho de 2026, a Notável Aroma registrou receita de R$ 1.452.163,05, despesas de R$ 1.407.824,15 e saldo líquido de R$ 44.338,90, uma margem média de apenas 3,05%. O semestre teve trajetória de montanha-russa: forte em março, tombo em abril, recuperação em maio e leve recuo em junho. A receita mensal média ficou em R$ 242.027,18 e as despesas médias em R$ 234.637,36.\n\nO retrato do primeiro semestre é de uma empresa em crescimento de faturamento, mas com rentabilidade ainda frágil e altamente dependente da gestão de custos — em especial matéria-prima. O ponto positivo estrutural é a diversificação de canais (Shein e TikTok ganhando espaço), que reduz a dependência da Shopee. Para o segundo semestre, o foco deve ser elevar a margem operacional de forma consistente acima de 8-10% e transformar o crescimento de receita em geração de caixa efetiva."
+    }
+  },
+  "conclusao": "Junho fechou o primeiro semestre com um déficit leve de R$ 7.002,86, interrompendo a recuperação de maio. A operação ficou praticamente no zero a zero (resultado DRE de +R$ 392,50), mas o caixa do mês foi puxado para baixo. O acumulado do ano segue positivo em R$ 44.338,90, sustentado pela diversificação de canais. Para o segundo semestre, a Notável Aroma precisa estabilizar a receita acima de R$ 270 mil, disciplinar as compras de matéria-prima e converter o crescimento em margem para reconstruir caixa."
+}
