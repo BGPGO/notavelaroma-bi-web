@@ -401,6 +401,8 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
 
   // ===== Hierarquia clicável: categoria → fornecedor/cliente → lançamento =====
   const [expanded, setExpanded] = useState(() => new Set());
+  const [showAllRec, setShowAllRec] = useState(false);
+  const [showAllDesp, setShowAllDesp] = useState(false);
   const toggleExpand = (key) => {
     setExpanded(prev => {
       const next = new Set(prev);
@@ -470,11 +472,12 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
     for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
     return Math.abs(h);
   };
-  // Nome neutro pra evitar expor "Parceiro 001" da base fake
+  // Mostra o nome real do cliente/fornecedor (a base tem os nomes no campo cliente).
+  // Antes anonimizava ("Cliente 001") — resíduo da base fake, virava "???" com nome real.
   const displayName = (rawName, kind) => {
-    const m = (rawName || "").match(/(\d+)/);
-    const num = m ? String(parseInt(m[1], 10)).padStart(3, "0") : "???";
-    return kind === "r" ? `Cliente ${num}` : `Fornecedor ${num}`;
+    const nm = (rawName || "").trim();
+    if (!nm || nm === "Sem identificação") return kind === "r" ? "Cliente não identificado" : "Fornecedor não identificado";
+    return nm;
   };
   // Fake doc ref por linha (estável)
   const docRefOf = (row) => {
@@ -655,6 +658,13 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
     const isClassic = mode === "classic";
     const isCompact = mode === "compact";
     const isHeatmap = mode === "heatmap";
+    // Fluxo lista TODAS as categorias (total 100%); preview curto + "mostrar mais"
+    // pra nao virar uma parede de linhas.
+    const CAT_PREVIEW = 10;
+    const recRows = showAllRec ? B.FLUXO_RECEITA : B.FLUXO_RECEITA.slice(0, CAT_PREVIEW);
+    const despRows = showAllDesp ? B.FLUXO_DESPESA : B.FLUXO_DESPESA.slice(0, CAT_PREVIEW);
+    const recExtra = Math.max(0, B.FLUXO_RECEITA.length - CAT_PREVIEW);
+    const despExtra = Math.max(0, B.FLUXO_DESPESA.length - CAT_PREVIEW);
 
     return (
       <table className={`t fluxo-table fluxo-${mode}`}>
@@ -711,7 +721,16 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
 
           {/* Linhas de Receita */}
           {isCompact
-            ? B.FLUXO_RECEITA.map(row => renderCategoriaTree(row, "r"))
+            ? (<>
+                {recRows.map(row => renderCategoriaTree(row, "r"))}
+                {recExtra > 0 && (
+                  <tr key="more-rec" className="fluxo-more-row" onClick={() => setShowAllRec(v => !v)} style={{ cursor: "pointer" }}>
+                    <td colSpan={months6.length + 1} style={{ textAlign: "center", color: "var(--mute)", fontSize: 11.5, fontWeight: 600, padding: "8px 6px", letterSpacing: 0.2 }}>
+                      {showAllRec ? "▲  mostrar menos" : `▾  mostrar mais ${recExtra} categorias de receita`}
+                    </td>
+                  </tr>
+                )}
+              </>)
             : B.FLUXO_RECEITA.map(row => (
               <tr key={row.cat}>
                 <td><span className="chev">+</span>{row.cat}</td>
@@ -771,7 +790,16 @@ const PageFluxo = ({ filters, setFilters, onOpenFilters, statusFilter, drilldown
 
           {/* Linhas de Despesa */}
           {isCompact
-            ? B.FLUXO_DESPESA.map(row => renderCategoriaTree(row, "d"))
+            ? (<>
+                {despRows.map(row => renderCategoriaTree(row, "d"))}
+                {despExtra > 0 && (
+                  <tr key="more-desp" className="fluxo-more-row" onClick={() => setShowAllDesp(v => !v)} style={{ cursor: "pointer" }}>
+                    <td colSpan={months6.length + 1} style={{ textAlign: "center", color: "var(--mute)", fontSize: 11.5, fontWeight: 600, padding: "8px 6px", letterSpacing: 0.2 }}>
+                      {showAllDesp ? "▲  mostrar menos" : `▾  mostrar mais ${despExtra} categorias de despesa`}
+                    </td>
+                  </tr>
+                )}
+              </>)
             : B.FLUXO_DESPESA.map(row => (
               <tr key={row.cat}>
                 <td><span className="chev">+</span>{row.cat}</td>

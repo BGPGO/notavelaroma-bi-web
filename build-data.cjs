@@ -499,7 +499,7 @@ function buildSegment(rec, desp, year, label) {
     SALDOS_MES.push(saldo);
   }
   // FLUXO horizontal (top 5 categorias receita / top 5 despesa)
-  const FLUXO_RECEITA = RECEITA_CATEGORIAS.slice(0, 5).map((cat) => ({
+  const FLUXO_RECEITA = RECEITA_CATEGORIAS.map((cat) => ({
     cat: cat.name,
     values: MONTHS_FULL.map((mn, mi) => {
       let s = 0;
@@ -513,7 +513,7 @@ function buildSegment(rec, desp, year, label) {
       return s;
     }),
   }));
-  const FLUXO_DESPESA = DESPESA_CATEGORIAS.slice(0, 5).map((cat) => ({
+  const FLUXO_DESPESA = DESPESA_CATEGORIAS.map((cat) => ({
     cat: cat.name,
     values: MONTHS_FULL.map((mn, mi) => {
       let s = 0;
