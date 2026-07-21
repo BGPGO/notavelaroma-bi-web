@@ -940,18 +940,31 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
   const aReceberDiaSeg = segAPR.RECEITA_DIA || B.RECEITA_DIA;
   const aPagarDiaSeg = segAPR.DESPESA_DIA || B.DESPESA_DIA;
 
-  const saldosMes = (SEG.tudo && SEG.tudo.SALDOS_MES) || B.SALDOS_MES;
-  // Cumulativo (running balance): cada mês = saldo atual após acumular movimentos
   const SALDOS_REAIS = (window.BIT_EXTRAS && window.BIT_EXTRAS.saldos) || null;
-  // Total parado em contas CDB (investimento) — alimenta o toggle "Com/Sem CDB" do fluxo a vencer.
-  const cdbTotal = useMemo(() => {
-    if (!SALDOS_REAIS || !SALDOS_REAIS.last) return 0;
-    const emp = SALDOS_REAIS.last.empresas || {};
-    let t = 0;
-    for (const s of Object.keys(emp)) for (const n of Object.keys(emp[s].contas || {})) if (/cdb/i.test(n)) t += emp[s].contas[n];
-    return t;
-  }, [SALDOS_REAIS]);
+  // Empresa selecionada no header (multi-empresa). Notável Aroma é 1 empresa => sempre vazio.
+  const headerEmp = (filters && filters.conta && filters.conta !== 'Todas contas') ? filters.conta : '';
+  // Contas do saldo real: sem empresa => consolidado (comportamento atual); com empresa => só as dela.
+  const scopedContas = useMemo(() => {
+    if (!SALDOS_REAIS || !SALDOS_REAIS.last) return {};
+    const last = SALDOS_REAIS.last;
+    if (!headerEmp) return last.contas || {};
+    const emp = last.empresas || {};
+    return (emp[headerEmp] && emp[headerEmp].contas) || {};
+  }, [SALDOS_REAIS, headerEmp]);
+  const realTotal = useMemo(() =>
+    headerEmp ? Object.values(scopedContas).reduce((s, v) => s + v, 0)
+              : ((SALDOS_REAIS && SALDOS_REAIS.last && SALDOS_REAIS.last.total) || 0),
+    [scopedContas, headerEmp, SALDOS_REAIS]);
+  // Total parado em contas CDB (investimento), escopado pela empresa. Alimenta o toggle Com/Sem CDB.
+  const cdbTotal = useMemo(() => Object.entries(scopedContas).reduce((s, [n, v]) => s + (/cdb/i.test(n) ? v : 0), 0), [scopedContas]);
   const hasCDB = Math.abs(cdbTotal) > 0.005;
+  // Movimento líquido por mês (tudo = pago + a vencer). Consolidado usa o segmento estático
+  // (mantém o gráfico atual); por empresa recomputa filtrado via getBit.
+  const saldosMes = useMemo(() => {
+    if (!headerEmp) return (SEG.tudo && SEG.tudo.SALDOS_MES) || B.SALDOS_MES;
+    const bt = window.getBit('tudo', null, year, 0, filters);
+    return (bt.MONTH_DATA || []).map(m => (m.receita || 0) - (m.despesa || 0));
+  }, [headerEmp, year, filters]);
   // Saldo inicial do ano: usa o saldo real mais antigo da planilha (se disponível) menos os movimentos até o mês desse saldo.
   // Sem isso, parte de 0 e mostra apenas o efeito dos movimentos.
   const saldoInicial = (function() {
@@ -962,7 +975,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
     // saldoInicial = saldoAtual - sum(saldosMes[0..lastMonthIdx])
     let acumAteAgora = 0;
     for (let i = 0; i <= lastMonthIdx; i++) acumAteAgora += saldosMes[i] || 0;
-    return SALDOS_REAIS.last.total - acumAteAgora;
+    return realTotal - acumAteAgora;
   })();
   const saldosCum = saldosMes.reduce((acc, v, i) => {
     acc.push((acc[i - 1] != null ? acc[i - 1] : saldoInicial) + (v || 0));
@@ -983,7 +996,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
     if (!d || !m || !y) return 0;
     return y * 10000 + m * 100 + d;
   };
-  const saldoBaseRaw = (SALDOS_REAIS && SALDOS_REAIS.last && SALDOS_REAIS.last.total) || 0;
+  const saldoBaseRaw = realTotal;
   const saldoBaseInicial = semCDB ? saldoBaseRaw - cdbTotal : saldoBaseRaw;
   const fluxoFuturoFull = useMemo(() => {
     // Lê direto de ALL_TX (não usa SEG.EXTRATO porque buildExtrato faz slice(0,200)
@@ -991,7 +1004,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
     const allTx = window.ALL_TX || [];
     // Filtra: não realizado (a-vencer) E data >= hoje
     // ALL_TX schema: [kind, mes (yyyy-mm), dia, categoria, cliente, valor, realizado, fornecedor, cc]
-    const apr = allTx.filter(r => r[6] === 0);
+    const apr = allTx.filter(r => r[6] === 0 && (!headerEmp || r[9] === headerEmp));
     // Constrói tupla compatível com EXTRATO: [data DD/MM/YYYY, cc, categoria, cliente/fornec, valorAssinado, status]
     const rows = apr.map(r => {
       const [kind, mes, dia, categoria, cliente, valor, _realizado, fornecedor, cc] = r;
@@ -1012,7 +1025,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
       saldoRunning += (e[4] || 0);
       return [...e, saldoRunning];
     });
-  }, [drilldown, todayKey, saldoBaseInicial]);
+  }, [drilldown, todayKey, saldoBaseInicial, headerEmp]);
 
   // Tabela limita a 60 linhas, mas análise de risco usa o full
   const fluxoFuturo = useMemo(() => fluxoFuturoFull.slice(0, 60), [fluxoFuturoFull]);
@@ -1111,20 +1124,20 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
         const SALDOS = (window.BIT_EXTRAS && window.BIT_EXTRAS.saldos) || null;
         if (!SALDOS || !SALDOS.last) return null;
         const last = SALDOS.last;
-        const contas = Object.entries(last.contas).sort((a, b) => b[1] - a[1]);
+        const contas = Object.entries(scopedContas).sort((a, b) => b[1] - a[1]);
         // Projeção: saldo último + ∑(a receber) − ∑(a pagar) acumulado por mês.
-        // Usa BIT_SEGMENTS.a_pagar_receber pra somar ainda-pendente por mês futuro.
-        const seg = (window.BIT_SEGMENTS || {}).a_pagar_receber || { MONTH_DATA: [] };
+        // a_pagar_receber escopado pela empresa (via getBit) quando há empresa selecionada.
+        const seg = headerEmp ? window.getBit('a_pagar_receber', null, year, 0, filters) : ((window.BIT_SEGMENTS || {}).a_pagar_receber || { MONTH_DATA: [] });
         const lastDate = new Date(last.data);
         const lastMonthIdx = lastDate.getMonth();
         const proj = [];
-        let saldo = last.total;
+        let saldo = realTotal;
         for (let i = lastMonthIdx + 1; i < 12; i++) {
           const md = seg.MONTH_DATA[i] || { receita: 0, despesa: 0 };
           saldo += (md.receita || 0) - (md.despesa || 0);
           proj.push({ m: B.MONTHS_FULL[i] || `M${i+1}`, saldo });
         }
-        const series = [last.total, ...proj.map(p => p.saldo)];
+        const series = [realTotal, ...proj.map(p => p.saldo)];
         const labels = ['Hoje', ...proj.map(p => p.m.slice(0,3))];
         const minProj = Math.min(...series);
         const maxProj = Math.max(...series);
@@ -1143,7 +1156,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
               ))}
               <div className="indicator-card" style={{ padding: 12, background: 'rgba(34,211,238,0.08)' }}>
                 <div className="kpi-label" style={{ fontSize: 10 }}>Total</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 18, color: 'var(--cyan)' }}>{B.fmt(last.total)}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 18, color: 'var(--cyan)' }}>{B.fmt(realTotal)}</div>
               </div>
             </div>
             <div style={{ marginTop: 8 }}>
@@ -1167,7 +1180,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
             <div><div className="kpi-label">Saldo Mínimo</div><div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--red)" }}>{B.fmt(sMin)}</div></div>
             <div><div className="kpi-label">Saldo Médio</div><div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--cyan)" }}>{B.fmt(sMed)}</div></div>
             {SALDOS_REAIS && SALDOS_REAIS.last && (
-              <div><div className="kpi-label">Saldo atual (planilha)</div><div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--cyan)" }}>{B.fmt(SALDOS_REAIS.last.total)}</div></div>
+              <div><div className="kpi-label">Saldo atual (planilha)</div><div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--cyan)" }}>{B.fmt(realTotal)}</div></div>
             )}
           </div>
           <TrendChart values={saldosCum} labels={B.MONTHS} color="var(--cyan)" height={isMobile ? 160 : 200} showPoints={true} showLabels={!isMobile} gradientId="ts-saldo" interactive valueFmt={B.fmt} tooltipLabel="Saldo acumulado" />
