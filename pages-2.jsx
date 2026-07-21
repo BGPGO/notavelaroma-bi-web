@@ -1723,18 +1723,15 @@ const PageComparativo = ({ filters, statusFilter, drilldown, setDrilldown, year,
 // ===== PageRelatorio =====
 // Carrega report.json (gerado offline por generate-report.cjs) e renderiza
 // um relatorio executivo imprimivel (Ctrl+P -> Save as PDF).
-const PageRelatorio = ({ year, statusFilter, filters }) => {
+const PageRelatorio = ({ year, month, statusFilter, filters }) => {
   const refYear = window.REF_YEAR || new Date().getFullYear();
   // Hooks de dados — DEVEM ficar antes de qualquer early return pra não violar
   // a ordem dos hooks. Os useMemo dependem de periodYear/periodMonth declarados abaixo
   // mas useMemo aceita refs do escopo via closure.
   // Estado do periodo a renderizar (defaults: ano corrente YTD)
-  const [periodYear, setPeriodYear] = useState(() => {
-    try { var p = JSON.parse(localStorage.getItem('bi.report.period') || 'null'); return (p && p.year) || (year || refYear); } catch (e) { return year || refYear; }
-  });
-  const [periodMonth, setPeriodMonth] = useState(() => {
-    try { var p = JSON.parse(localStorage.getItem('bi.report.period') || 'null'); return (p && p.month) || 0; } catch (e) { return 0; } // 0 = ano completo
-  });
+  // Período do relatório = filtro do topo (ano + mês). Empresa = filters.conta (1 arquivo por empresa).
+  const periodYear = year || refYear;
+  const periodMonth = month || 0;
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1775,7 +1772,7 @@ const PageRelatorio = ({ year, statusFilter, filters }) => {
     setGenerating(false);
     setError(null);
     setReport(null);
-    try { localStorage.setItem('bi.report.period', JSON.stringify({ year: periodYear, month: periodMonth })); } catch (e) {}
+    // período vem do filtro do topo (year/month) — sem estado próprio a persistir
     const file = reportFileName(periodYear, periodMonth);
     const fileKey = file.replace('.json', '');
 
@@ -1838,7 +1835,7 @@ const PageRelatorio = ({ year, statusFilter, filters }) => {
         setGenerating(false);
       });
     return () => { cancelled = true; };
-  }, [periodYear, periodMonth]);
+  }, [periodYear, periodMonth, contaSuffix]);
 
   const MONTH_OPTIONS = [
     { v: 0, label: "Ano completo" },
@@ -1849,15 +1846,11 @@ const PageRelatorio = ({ year, statusFilter, filters }) => {
   ];
   const availableYears = [2026];
 
+  // O período é controlado pelo filtro do topo (ano + mês). Aqui fica só um indicador read-only.
   const PeriodToolbar = (
-    <div className="report-period-toolbar" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div className="report-period-toolbar" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
       <span style={{ fontSize: 12, color: 'var(--mute)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Período:</span>
-      <select className="header-year" value={periodYear} onChange={e => setPeriodYear(Number(e.target.value))}>
-        {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-      </select>
-      <select className="header-year" value={periodMonth} onChange={e => setPeriodMonth(Number(e.target.value))}>
-        {MONTH_OPTIONS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
-      </select>
+      <b style={{ fontSize: 13, color: 'var(--text)' }}>{(periodMonth > 0 ? MONTH_OPTIONS[periodMonth].label : 'Ano completo') + ' · ' + periodYear}</b>
     </div>
   );
 
