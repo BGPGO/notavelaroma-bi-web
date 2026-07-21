@@ -93,6 +93,15 @@ const IndicatorLine = ({ values, labels, height = 240, color = "var(--cyan)", fo
   // um viewBox mais estreito faz os pontos plotados em px absolutos ficarem espacados
   // de forma proporcional ao espaco disponivel no mobile (~326px), evitando o achatamento.
   const isMobile = useIsMobile();
+  // Guard: com serie vazia (ex.: indicador sem dados) o desenho da curva acessa
+  // p[0][0] num array vazio e derruba o React inteiro (tela preta). Placeholder evita.
+  if (!values || values.length < 2) {
+    return (
+      <div style={{ height, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--mute)", fontFamily: "var(--font-ui)", fontSize: 13 }}>
+        Sem dados suficientes para este indicador
+      </div>
+    );
+  }
   const w = isMobile ? 600 : 1100;
   const h = isMobile ? 180 : height;
   const padX = isMobile ? 28 : 50;
@@ -185,6 +194,8 @@ const PageOverview = ({ filters, setFilters, onOpenFilters, statusFilter, drilld
   const DRE = B.MONTH_DRE || [];
   const margemSeries = B.MONTH_DATA.map(m => m.receita > 0 ? ((m.receita - m.despesa) / m.receita) * 100 : 0);
   const impostosSeries = DRE.map(m => m.imposto || 0);
+  // Fonte NIBO nao segrega imposto -> serie vazia/toda-zero. Esconde a pilula em vez de exibir R$0.
+  const hasImpostos = impostosSeries.length > 0 && impostosSeries.some(v => v !== 0);
   // EBITDA = valor líquido + impostos (antes de juros e impostos)
   const ebitdaSeries = B.MONTH_DATA.map((m, i) => (m.receita - m.despesa) + (DRE[i] ? DRE[i].imposto || 0 : 0));
   // Resultado operacional = valor líquido (depois de juros e impostos)
@@ -194,11 +205,11 @@ const PageOverview = ({ filters, setFilters, onOpenFilters, statusFilter, drilld
     "Receita":                { values: B.MONTH_DATA.map(m => m.receita), color: "var(--green)", fmt: (v) => B.fmt(v) },
     "Despesa":                { values: B.MONTH_DATA.map(m => -m.despesa), color: "var(--red)", fmt: (v) => B.fmt(v) },
     "Margem Líquida":         { values: margemSeries, color: "var(--cyan)", fmt: (v) => `${v.toFixed(2).replace(".", ",")}%` },
-    "Impostos":               { values: impostosSeries, color: "var(--red-2)", fmt: (v) => B.fmt(v) },
+    ...(hasImpostos ? { "Impostos": { values: impostosSeries, color: "var(--red-2)", fmt: (v) => B.fmt(v) } } : {}),
     "EBITDA":                 { values: ebitdaSeries, color: "var(--green-2)", fmt: (v) => B.fmt(v) },
     "Resultado operacional":  { values: resOpSeries, color: "var(--amber)", fmt: (v) => B.fmt(v) },
   };
-  const current = indicatorSeries[indicator];
+  const current = indicatorSeries[indicator] || indicatorSeries["Valor líquido"];
   const monthLabels = B.MONTHS_FULL.map(m => `${m.charAt(0).toUpperCase() + m.slice(1, 3)} ${refYear}`);
 
   // DRE dinâmico — recalcula a partir das transações filtradas (reage a filtro de empresa/conta/mês)
