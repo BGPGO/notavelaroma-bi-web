@@ -741,7 +741,10 @@ const AVAILABLE_YEARS = ${JSON.stringify(AVAILABLE_YEARS)};
 function aggregateTx(txList, year, receitaScope) {
   year = year || REF_YEAR;
   const months = ${JSON.stringify(MONTHS_FULL)};
-  const MONTH_DATA = months.map(m => ({ m, receita: 0, despesa: 0 }));
+  const MONTH_DATA = months.map(m => ({ m, receita: 0, despesa: 0, imposto: 0 }));
+  // Impostos: categorias isoladas no indicador da Visao Geral (pedido do cliente).
+  const IMPOSTO_CATS = ["impostos sobre receita", "impostos e taxas"];
+  const foldCat = s => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const RECEITA_DIA = Array(31).fill(0);
   const DESPESA_DIA = Array(31).fill(0);
   const recCat = new Map(), despCat = new Map();
@@ -757,6 +760,7 @@ function aggregateTx(txList, year, receitaScope) {
     if (Number(ymonth) !== year) continue;
     const mIdx = parseInt(mes.slice(5,7), 10) - 1;
     if (mIdx < 0 || mIdx > 11) continue;
+    if (IMPOSTO_CATS.indexOf(foldCat(categoria)) !== -1) MONTH_DATA[mIdx].imposto += valor;
     // receitaScope='operacional': tela Receita conta só receita operacional
     // (exclui entradas de financiamento/investimento, ex.: empréstimo). Essas
     // entradas continuam no Fluxo de Caixa via os agregados padrão (sem scope).

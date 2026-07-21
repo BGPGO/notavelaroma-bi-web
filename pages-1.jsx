@@ -191,17 +191,20 @@ const PageOverview = ({ filters, setFilters, onOpenFilters, statusFilter, drilld
   };
 
   // Indicator series for the toggle chart (derived da MONTH_DATA real)
-  const DRE = B.MONTH_DRE || [];
   const margemSeries = B.MONTH_DATA.map(m => m.receita > 0 ? ((m.receita - m.despesa) / m.receita) * 100 : 0);
-  const impostosSeries = DRE.map(m => m.imposto || 0);
-  // Fonte NIBO nao segrega imposto -> serie vazia/toda-zero. Esconde a pilula em vez de exibir R$0.
-  const hasImpostos = impostosSeries.length > 0 && impostosSeries.some(v => v !== 0);
-  // EBITDA = valor líquido + impostos (antes de juros e impostos)
-  const ebitdaSeries = B.MONTH_DATA.map((m, i) => (m.receita - m.despesa) + (DRE[i] ? DRE[i].imposto || 0 : 0));
-  // Resultado operacional = valor líquido (depois de juros e impostos)
-  const resOpSeries = B.VALOR_LIQ_SERIES;
+  // Impostos = soma das categorias "Impostos sobre receita" + "Impostos e Taxas" por mes,
+  // agregado em build-data > aggregateTx (ja respeita statusFilter/drilldown/filtro de empresa).
+  const impostosSeries = B.MONTH_DATA.map(m => m.imposto || 0);
+  const hasImpostos = impostosSeries.some(v => v !== 0);
+  // EBITDA = resultado + impostos (readiciona os impostos ja embutidos na despesa)
+  const ebitdaSeries = B.MONTH_DATA.map(m => (m.receita - m.despesa) + (m.imposto || 0));
+  // Valor líquido / Resultado operacional derivados do MONTH_DATA filtrado (reage ao
+  // statusFilter, igual ao resto da overview). B.VALOR_LIQ_SERIES vinha do segmento
+  // 'realizado' estatico e nao acompanhava o toggle de status.
+  const valorLiqSeries = B.MONTH_DATA.map(m => m.receita - m.despesa);
+  const resOpSeries = valorLiqSeries;
   const indicatorSeries = {
-    "Valor líquido":          { values: B.VALOR_LIQ_SERIES, color: "var(--cyan)", fmt: (v) => B.fmt(v) },
+    "Valor líquido":          { values: valorLiqSeries, color: "var(--cyan)", fmt: (v) => B.fmt(v) },
     "Receita":                { values: B.MONTH_DATA.map(m => m.receita), color: "var(--green)", fmt: (v) => B.fmt(v) },
     "Despesa":                { values: B.MONTH_DATA.map(m => -m.despesa), color: "var(--red)", fmt: (v) => B.fmt(v) },
     "Margem Líquida":         { values: margemSeries, color: "var(--cyan)", fmt: (v) => `${v.toFixed(2).replace(".", ",")}%` },
