@@ -49,7 +49,7 @@ function biShades(n) {
 // conta no último dia de cada mês). Gráfico de linhas multi-conta interativo +
 // matriz-tabela. Escopa por empresa quando o header filtra (Ornata multi-org).
 const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
-  const [hoverIdx, setHoverIdx] = useState(null);
+  const [hoverIdx, setHoverIdx] = useState(null); // mês selecionado por CLIQUE (null = nada aberto)
   const [oculta, setOculta] = useState({});
   const [hoverRow, setHoverRow] = useState(null);
   const monthly = (saldos && saldos.monthly) || null;
@@ -100,7 +100,7 @@ const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
         ))}
       </div>
 
-      <div style={{ position: 'relative' }} onMouseLeave={() => setHoverIdx(null)}>
+      <div style={{ position: 'relative' }}>
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }}>
           {vmin < 0 && <line x1={padL} x2={W - padR} y1={y0} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="3 3" />}
           {hoverIdx != null && <line x1={xi(hoverIdx)} x2={xi(hoverIdx)} y1={padT} y2={H - padB} stroke="var(--cyan)" strokeWidth="1" opacity="0.4" vectorEffect="non-scaling-stroke" />}
@@ -109,11 +109,11 @@ const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
           {scoped.map((m, i) => {
             const l = i === 0 ? 0 : (xi(i - 1) + xi(i)) / 2;
             const r = i === N - 1 ? W : (xi(i) + xi(i + 1)) / 2;
-            return <rect key={i} x={l} y={0} width={Math.max(1, r - l)} height={H} fill="transparent" onMouseEnter={() => setHoverIdx(i)} style={{ cursor: 'crosshair' }} />;
+            return <rect key={i} x={l} y={0} width={Math.max(1, r - l)} height={H} fill="transparent" onClick={() => setHoverIdx(p => p === i ? null : i)} style={{ cursor: 'pointer' }} />;
           })}
         </svg>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: 'var(--mute)' }}>
-          {scoped.map((m, i) => <span key={i} style={{ fontWeight: hoverIdx === i ? 700 : 400, color: hoverIdx === i ? 'var(--cyan)' : 'var(--mute)' }}>{m.label}{m.parcial ? '*' : ''}</span>)}
+          {scoped.map((m, i) => <span key={i} onClick={() => setHoverIdx(p => p === i ? null : i)} style={{ cursor: 'pointer', fontWeight: hoverIdx === i ? 700 : 400, color: hoverIdx === i ? 'var(--cyan)' : 'var(--mute)' }}>{m.label}{m.parcial ? '*' : ''}</span>)}
         </div>
         {hoverIdx != null && (
           <div style={{ position: 'absolute', top: 0, left: tipAlign === 'center' ? `${tipPct}%` : tipAlign === 'left' ? 0 : undefined, right: tipAlign === 'right' ? 0 : undefined, transform: tipAlign === 'center' ? 'translateX(-50%)' : 'none', background: 'var(--bg-4)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '8px 10px', pointerEvents: 'none', zIndex: 5, minWidth: 150, boxShadow: '0 6px 20px rgba(0,0,0,0.5)' }}>
@@ -137,7 +137,7 @@ const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
           <thead>
             <tr style={{ color: 'var(--mute)' }}>
               <th style={{ textAlign: 'left', padding: '4px 8px', position: 'sticky', left: 0, background: 'var(--bg-3)' }}>Conta</th>
-              {scoped.map((m, i) => <th key={i} onMouseEnter={() => setHoverIdx(i)} style={{ textAlign: 'right', padding: '4px 8px', fontWeight: hoverIdx === i ? 700 : 600, color: hoverIdx === i ? 'var(--cyan)' : 'var(--mute)', cursor: 'default' }}>{m.label}{m.parcial ? '*' : ''}</th>)}
+              {scoped.map((m, i) => <th key={i} onClick={() => setHoverIdx(p => p === i ? null : i)} style={{ textAlign: 'right', padding: '4px 8px', fontWeight: hoverIdx === i ? 700 : 600, color: hoverIdx === i ? 'var(--cyan)' : 'var(--mute)', cursor: 'pointer' }}>{m.label}{m.parcial ? '*' : ''}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -157,7 +157,7 @@ const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
         </table>
       </div>
       <div className="status-line" style={{ marginTop: 8 }}>
-        Saldo real de cada conta no último dia de cada mês (reconstruído da NIBO: saldo de abertura + baixas). Clique na conta pra ocultar.{scoped.some(m => m.parcial) ? ' * mês em curso (até hoje).' : ''}
+        Clique num mês (no gráfico ou no cabeçalho) pra ver os saldos daquele mês — clique de novo pra fechar. Clique numa conta pra ocultá-la. Saldo real no último dia de cada mês (reconstruído da NIBO).{scoped.some(m => m.parcial) ? ' * mês em curso (até hoje).' : ''}
       </div>
     </div>
   );
