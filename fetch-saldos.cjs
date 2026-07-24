@@ -74,38 +74,82 @@ async function getAll(ep, token, orderby) {
 }
 const round = n => Math.round(n * 100) / 100;
 
-async function saldoOrg(token) {
+// Carrega contas + baixas cruas de uma org (openBalance/openDate + lista de
+// movimentos datados). Reaproveitado tanto pro saldo atual quanto pro saldo no
+// fim de cada mes — evita refazer as chamadas de API por corte.
+async function loadOrg(token) {
   const accounts = await getAll('empresas/v1/accounts', token, 'name');
   const receipts = await getAll('empresas/v1/receipts', token, 'date');
   const payments = await getAll('empresas/v1/payments', token, 'date');
-  const acc = {};
+  const raw = {};
   for (const a of accounts) {
     if (a.isArchived) continue;
-    acc[a.id] = { name: a.name, saldo: Number(a.openBalance) || 0, openDate: (a.dateOfOpenBalance || '').slice(0, 10) };
+    raw[a.id] = { name: a.name, open: Number(a.openBalance) || 0, openDate: (a.dateOfOpenBalance || '').slice(0, 10), movs: [] };
   }
-  for (const r of receipts) { const id = r.account && r.account.id; if (acc[id] && (r.date || '').slice(0, 10) >= acc[id].openDate) acc[id].saldo += Math.abs(Number(r.value) || 0); }
-  for (const p of payments) { const id = p.account && p.account.id; if (acc[id] && (p.date || '').slice(0, 10) >= acc[id].openDate) acc[id].saldo -= Math.abs(Number(p.value) || 0); }
+  for (const r of receipts) { const id = r.account && r.account.id; const d = (r.date || '').slice(0, 10); if (raw[id] && d >= raw[id].openDate) raw[id].movs.push({ d, v: Math.abs(Number(r.value) || 0) }); }
+  for (const p of payments) { const id = p.account && p.account.id; const d = (p.date || '').slice(0, 10); if (raw[id] && d >= raw[id].openDate) raw[id].movs.push({ d, v: -Math.abs(Number(p.value) || 0) }); }
+  return raw;
+}
+
+// Saldo por conta numa data de corte (inclusive). Conta que ainda nao existia
+// naquele corte (openDate > corte) fica de fora do mes.
+function balancesAt(raw, cutoff) {
   const contas = {}; let total = 0;
-  for (const id of Object.keys(acc)) { const v = round(acc[id].saldo); contas[acc[id].name] = v; total += v; }
+  for (const id of Object.keys(raw)) {
+    const a = raw[id];
+    if (a.openDate && a.openDate > cutoff) continue;
+    let s = a.open;
+    for (const m of a.movs) if (m.d <= cutoff) s += m.v;
+    s = round(s); contas[a.name] = s; total += s;
+  }
   return { total: round(total), contas };
 }
 
 (async () => {
   const hoje = new Date().toISOString().slice(0, 10);
-  const empresas = {}; const contasFlat = {}; let total = 0;
   const multi = ORGS.length > 1 || ORGS.some(o => o.slug);
-  for (const o of ORGS) {
-    const s = await saldoOrg(o.token);
-    total += s.total;
-    const key = o.slug || 'default';
-    empresas[key] = { nome: o.nome, total: s.total, contas: s.contas };
-    for (const [nome, v] of Object.entries(s.contas)) {
-      contasFlat[multi ? `${o.nome} · ${nome}` : nome] = v;
+
+  // Carrega o raw de cada org UMA vez (as chamadas de API são o caro; o corte por
+  // mês é só aritmética em cima disso).
+  const orgRaws = [];
+  for (const o of ORGS) orgRaws.push({ o, raw: await loadOrg(o.token) });
+
+  // Consolida saldos numa data de corte no mesmo shape do "last": contas flat
+  // (namespaced por empresa quando multi-org) + por empresa.
+  const consolidaEm = (cutoff) => {
+    const empresas = {}; const contasFlat = {}; let total = 0;
+    for (const { o, raw } of orgRaws) {
+      const s = balancesAt(raw, cutoff);
+      total += s.total;
+      const key = o.slug || 'default';
+      empresas[key] = { nome: o.nome, total: round(s.total), contas: s.contas };
+      for (const [nome, v] of Object.entries(s.contas)) contasFlat[multi ? `${o.nome} · ${nome}` : nome] = v;
     }
+    return { total: round(total), contas: contasFlat, empresas };
+  };
+
+  // Saldo atual (corte = hoje) — mantém o shape antigo intacto.
+  const cur = consolidaEm(hoje);
+  const total = cur.total;
+  const last = { data: hoje, total, contas: cur.contas, empresas: cur.empresas };
+
+  // Saldo no fim de cada mês do ano corrente, até o mês atual (mês em curso é
+  // cortado em hoje). Alimenta o gráfico "Saldo por conta (fim de cada mês)".
+  const anoRef = (cfg.meta && cfg.meta.ano_corrente) || new Date().getFullYear();
+  const ML = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const nowD = new Date();
+  const monthly = [];
+  for (let m = 0; m < 12; m++) {
+    const futuro = anoRef > nowD.getFullYear() || (anoRef === nowD.getFullYear() && m > nowD.getMonth());
+    if (futuro) break;
+    const corrente = anoRef === nowD.getFullYear() && m === nowD.getMonth();
+    const fimMes = new Date(anoRef, m + 1, 0);
+    const cutoff = corrente ? hoje : `${anoRef}-${String(m + 1).padStart(2, '0')}-${String(fimMes.getDate()).padStart(2, '0')}`;
+    const c = consolidaEm(cutoff);
+    monthly.push({ mes: `${anoRef}-${String(m + 1).padStart(2, '0')}`, label: ML[m], date: cutoff, parcial: corrente, total: c.total, contas: c.contas, empresas: c.empresas });
   }
-  total = round(total);
-  const last = { data: hoje, total, contas: contasFlat, empresas };
-  const saldos = { daily: [last], last, contas: Object.keys(contasFlat), empresasList: Object.keys(empresas), fonte: 'nibo-api (openBalance + baixas)' };
+
+  const saldos = { daily: [last], last, monthly, contas: Object.keys(cur.contas), empresasList: Object.keys(cur.empresas), fonte: 'nibo-api (openBalance + baixas)' };
 
   const OUT = path.join(__dirname, 'data-extras.js');
   let extras = {};
@@ -118,6 +162,6 @@ async function saldoOrg(token) {
   }
   extras.saldos = saldos;
   fs.writeFileSync(OUT, `/* BI EXTRAS — saldos via fetch-saldos.cjs (${hoje}) */\nwindow.BIT_EXTRAS = ${JSON.stringify(extras)};\n`);
-  const resumo = Object.values(empresas).map(e => `${e.nome}: R$ ${e.total.toFixed(2)}`).join(' | ');
+  const resumo = Object.values(cur.empresas).map(e => `${e.nome}: R$ ${e.total.toFixed(2)}`).join(' | ');
   console.log(`fetch-saldos OK: ${ORGS.length} org(s) · total R$ ${total.toFixed(2)} · ${hoje}\n  ${resumo}`);
 })().catch(e => { console.error('fetch-saldos ERRO:', e.message); process.exit(1); });

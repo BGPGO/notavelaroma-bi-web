@@ -5,6 +5,164 @@ const { useState, useMemo, useEffect } = React;
 // concatenado (build-jsx.cjs). Reutilizado aqui pra ajustar height/showLabels dos
 // TrendCharts em mobile.
 
+// ===== Paleta na cor do BI =====
+// Deriva N tons do --cyan (a cor primária de cada BI é remapeada nessa var no
+// styles.css), variando luminância + leve rotação de matiz. Mantém tudo na
+// família de cor de cada BI (marrom no Notável, dourado na Ornata).
+function _hexToHsl(hex) {
+  let h = String(hex).replace('#', '').trim();
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  let hue = 0, s = 0;
+  if (mx !== mn) {
+    const d = mx - mn; s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    hue = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hue *= 60;
+  }
+  return [hue, s * 100, l * 100];
+}
+function _hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = n => { const c = l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return Math.round(255 * c).toString(16).padStart(2, '0'); };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+function biShades(n) {
+  let base = '#22d3ee';
+  try { const v = getComputedStyle(document.documentElement).getPropertyValue('--cyan').trim(); if (v) base = v; } catch (e) {}
+  const [h, s] = _hexToHsl(base);
+  if (n <= 1) return [base];
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    const li = 42 + t * 38;                    // 42% -> 80% luminância
+    const hu = (h + (t - 0.5) * 26 + 360) % 360; // ±13° de matiz
+    const sa = Math.max(28, s - t * 8);
+    out.push(_hslToHex(hu, sa, li));
+  }
+  return out;
+}
+
+// ===== Saldo por conta no fim de cada mês =====
+// Lê BIT_EXTRAS.saldos.monthly (gerado por fetch-saldos.cjs: saldo real de cada
+// conta no último dia de cada mês). Gráfico de linhas multi-conta interativo +
+// matriz-tabela. Escopa por empresa quando o header filtra (Ornata multi-org).
+const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
+  const [hoverIdx, setHoverIdx] = useState(null);
+  const [oculta, setOculta] = useState({});
+  const [hoverRow, setHoverRow] = useState(null);
+  const monthly = (saldos && saldos.monthly) || null;
+
+  const scoped = useMemo(() => (monthly || []).map(m => ({
+    label: m.label, parcial: m.parcial,
+    contas: headerEmp ? ((m.empresas && m.empresas[headerEmp] && m.empresas[headerEmp].contas) || {}) : (m.contas || {}),
+  })), [monthly, headerEmp]);
+
+  const nomes = useMemo(() => {
+    const peso = new Map();
+    scoped.forEach(m => Object.entries(m.contas).forEach(([n, v]) => peso.set(n, (peso.get(n) || 0) + Math.abs(v || 0))));
+    return [...peso.keys()].sort((a, b) => (peso.get(b) || 0) - (peso.get(a) || 0));
+  }, [scoped]);
+
+  const cores = useMemo(() => { const p = biShades(nomes.length); const o = {}; nomes.forEach((n, i) => o[n] = p[i]); return o; }, [nomes]);
+
+  if (!monthly || monthly.length === 0 || nomes.length === 0) return null;
+
+  const ativos = nomes.filter(n => !oculta[n]);
+  const W = 1000, H = isMobile ? 150 : 200, padT = 14, padB = 24, padL = 6, padR = 6;
+  const N = scoped.length;
+  const xi = (i) => padL + (W - padL - padR) * (N === 1 ? 0.5 : i / (N - 1));
+  let vmax = 0, vmin = 0;
+  scoped.forEach(m => ativos.forEach(n => { const v = m.contas[n]; if (v != null) { if (v > vmax) vmax = v; if (v < vmin) vmin = v; } }));
+  if (vmax === vmin) vmax = vmin + 1;
+  const yi = (v) => padT + (H - padT - padB) * (1 - (v - vmin) / (vmax - vmin));
+  const y0 = yi(0);
+  const pathFor = (n) => {
+    let d = '', started = false;
+    scoped.forEach((m, i) => { const v = m.contas[n]; if (v == null) return; d += (started ? ' L ' : 'M ') + xi(i).toFixed(1) + ' ' + yi(v).toFixed(1); started = true; });
+    return d;
+  };
+  const tipPct = N > 1 ? (hoverIdx / (N - 1)) * 100 : 50;
+  const tipAlign = tipPct < 18 ? 'left' : tipPct > 82 ? 'right' : 'center';
+  const totalMes = (m) => ativos.reduce((s, n) => s + (m.contas[n] || 0), 0);
+
+  return (
+    <div style={{ marginTop: 22, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+      <div className="kpi-label" style={{ marginBottom: 10 }}>Saldo por conta (fim de cada mês)</div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginBottom: 10 }}>
+        {nomes.map(n => (
+          <button key={n} onClick={() => setOculta(o => ({ ...o, [n]: !o[n] }))}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: 0, opacity: oculta[n] ? 0.35 : 1, fontSize: 11, color: 'var(--fg-2)' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: cores[n], flex: '0 0 auto' }} />{n}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ position: 'relative' }} onMouseLeave={() => setHoverIdx(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }}>
+          {vmin < 0 && <line x1={padL} x2={W - padR} y1={y0} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="3 3" />}
+          {hoverIdx != null && <line x1={xi(hoverIdx)} x2={xi(hoverIdx)} y1={padT} y2={H - padB} stroke="var(--cyan)" strokeWidth="1" opacity="0.4" vectorEffect="non-scaling-stroke" />}
+          {ativos.map(n => <path key={n} d={pathFor(n)} fill="none" stroke={cores[n]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
+          {hoverIdx != null && ativos.map(n => { const v = scoped[hoverIdx].contas[n]; if (v == null) return null; return <circle key={n} cx={xi(hoverIdx)} cy={yi(v)} r="3" fill={cores[n]} stroke="var(--bg-3)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />; })}
+          {scoped.map((m, i) => {
+            const l = i === 0 ? 0 : (xi(i - 1) + xi(i)) / 2;
+            const r = i === N - 1 ? W : (xi(i) + xi(i + 1)) / 2;
+            return <rect key={i} x={l} y={0} width={Math.max(1, r - l)} height={H} fill="transparent" onMouseEnter={() => setHoverIdx(i)} style={{ cursor: 'crosshair' }} />;
+          })}
+        </svg>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: 'var(--mute)' }}>
+          {scoped.map((m, i) => <span key={i} style={{ fontWeight: hoverIdx === i ? 700 : 400, color: hoverIdx === i ? 'var(--cyan)' : 'var(--mute)' }}>{m.label}{m.parcial ? '*' : ''}</span>)}
+        </div>
+        {hoverIdx != null && (
+          <div style={{ position: 'absolute', top: 0, left: tipAlign === 'center' ? `${tipPct}%` : tipAlign === 'left' ? 0 : undefined, right: tipAlign === 'right' ? 0 : undefined, transform: tipAlign === 'center' ? 'translateX(-50%)' : 'none', background: 'var(--bg-4)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '8px 10px', pointerEvents: 'none', zIndex: 5, minWidth: 150, boxShadow: '0 6px 20px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontSize: 11, color: 'var(--fg-2)', marginBottom: 6, fontWeight: 600 }}>{scoped[hoverIdx].label}{scoped[hoverIdx].parcial ? ' (parcial)' : ''}</div>
+            {ativos.map(n => { const v = scoped[hoverIdx].contas[n]; return (
+              <div key={n} style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontSize: 11, marginBottom: 2 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--fg-2)' }}><span style={{ width: 8, height: 8, borderRadius: 2, background: cores[n] }} />{n}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: v == null ? 'var(--mute)' : v < 0 ? 'var(--red)' : 'var(--fg)' }}>{v == null ? '—' : fmt(v)}</span>
+              </div>
+            ); })}
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontSize: 11, marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--line)', fontWeight: 700 }}>
+              <span style={{ color: 'var(--cyan)' }}>Total</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--cyan)' }}>{fmt(totalMes(scoped[hoverIdx]))}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ overflowX: 'auto', marginTop: 16 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+          <thead>
+            <tr style={{ color: 'var(--mute)' }}>
+              <th style={{ textAlign: 'left', padding: '4px 8px', position: 'sticky', left: 0, background: 'var(--bg-3)' }}>Conta</th>
+              {scoped.map((m, i) => <th key={i} onMouseEnter={() => setHoverIdx(i)} style={{ textAlign: 'right', padding: '4px 8px', fontWeight: hoverIdx === i ? 700 : 600, color: hoverIdx === i ? 'var(--cyan)' : 'var(--mute)', cursor: 'default' }}>{m.label}{m.parcial ? '*' : ''}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {nomes.map(n => (
+              <tr key={n} onMouseEnter={() => setHoverRow(n)} onMouseLeave={() => setHoverRow(null)} style={{ background: hoverRow === n ? 'var(--bg-4)' : 'transparent', opacity: oculta[n] ? 0.4 : 1 }}>
+                <td style={{ textAlign: 'left', padding: '4px 8px', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: hoverRow === n ? 'var(--bg-4)' : 'var(--bg-3)' }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: cores[n], marginRight: 6 }} />{n}
+                </td>
+                {scoped.map((m, i) => { const v = m.contas[n]; return <td key={i} style={{ textAlign: 'right', padding: '4px 8px', fontFamily: 'var(--font-mono)', color: v == null ? 'var(--mute)' : v < 0 ? 'var(--red)' : 'var(--fg-2)', background: hoverIdx === i ? 'rgba(255,255,255,0.03)' : 'transparent' }}>{v == null ? '—' : fmt(v)}</td>; })}
+              </tr>
+            ))}
+            <tr style={{ borderTop: '1px solid var(--line-strong)', fontWeight: 700 }}>
+              <td style={{ textAlign: 'left', padding: '6px 8px', position: 'sticky', left: 0, background: 'var(--bg-3)', color: 'var(--cyan)' }}>Total</td>
+              {scoped.map((m, i) => <td key={i} style={{ textAlign: 'right', padding: '6px 8px', fontFamily: 'var(--font-mono)', color: 'var(--cyan)', background: hoverIdx === i ? 'rgba(255,255,255,0.03)' : 'transparent' }}>{fmt(totalMes(m))}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="status-line" style={{ marginTop: 8 }}>
+        Saldo real de cada conta no último dia de cada mês (reconstruído da NIBO: saldo de abertura + baixas). Clique na conta pra ocultar.{scoped.some(m => m.parcial) ? ' * mês em curso (até hoje).' : ''}
+      </div>
+    </div>
+  );
+};
+
 // ===== Fluxo de caixa diário =====
 // Barras = valor líquido do dia (receita − despesa), verde/vermelho.
 // Linha (eixo direito) = saldo acumulado correndo. Filtro segmentado por mês.
@@ -1187,6 +1345,7 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
           <div className="status-line" style={{ marginTop: 6 }}>
             Saldo cumulativo: parte de R$ {(B.fmt(saldoInicial) || "0").replace("R$ ", "")} no início do ano e acumula receitas − despesas mês a mês.
           </div>
+          <SaldoPorContaMensal saldos={SALDOS_REAIS} headerEmp={headerEmp} fmt={B.fmt} isMobile={isMobile} />
         </div>
 
         <div className="card">
