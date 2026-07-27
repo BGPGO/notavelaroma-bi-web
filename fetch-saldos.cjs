@@ -63,14 +63,22 @@ async function getJson(url, token) {
     } catch (e) { if (i === 4) throw e; await new Promise(r => setTimeout(r, 1500 * (i + 1))); }
   }
 }
-async function getAll(ep, token, orderby) {
-  const items = []; let skip = 0;
+// Paginação por $skip/$top só é determinística se o $orderby for ÚNICO. Ordenar
+// só por `date`/`name` deixa a ordem livre entre páginas: o corte cai em lugar
+// diferente a cada coleta e registros somem/repetem — media de R$168k de
+// oscilacao no saldo do SICREDI (Ornata, jul/26). Sempre passe um desempate
+// unico (entryId em receipts/payments, scheduleId em schedules) e dedupe.
+async function getAll(ep, token, orderby, idField) {
+  const seen = new Map(); let skip = 0; let n = 0;
   while (true) {
-    const j = await getJson(`${BASE}/${ep}?$skip=${skip}&$top=${PAGE}&$orderby=${orderby}`, token);
-    const b = j.items || []; items.push(...b);
+    const j = await getJson(`${BASE}/${ep}?$skip=${skip}&$top=${PAGE}&$orderby=${encodeURIComponent(orderby)}`, token);
+    const b = j.items || [];
+    // Rede de seguranca: se a ordenacao ainda escorregar, o dedupe evita contar
+    // o mesmo lancamento duas vezes. Sem idField, mantem tudo (chave posicional).
+    for (const x of b) seen.set(idField && x[idField] != null ? x[idField] : `#${n++}`, x);
     if (b.length < PAGE) break; skip += PAGE;
   }
-  return items;
+  return [...seen.values()];
 }
 const round = n => Math.round(n * 100) / 100;
 
@@ -78,9 +86,9 @@ const round = n => Math.round(n * 100) / 100;
 // movimentos datados). Reaproveitado tanto pro saldo atual quanto pro saldo no
 // fim de cada mes — evita refazer as chamadas de API por corte.
 async function loadOrg(token) {
-  const accounts = await getAll('empresas/v1/accounts', token, 'name');
-  const receipts = await getAll('empresas/v1/receipts', token, 'date');
-  const payments = await getAll('empresas/v1/payments', token, 'date');
+  const accounts = await getAll('empresas/v1/accounts', token, 'name', 'id');
+  const receipts = await getAll('empresas/v1/receipts', token, 'date,entryId', 'entryId');
+  const payments = await getAll('empresas/v1/payments', token, 'date,entryId', 'entryId');
   const raw = {};
   for (const a of accounts) {
     if (a.isArchived) continue;

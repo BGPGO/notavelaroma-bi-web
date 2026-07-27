@@ -61,21 +61,28 @@ async function getJson(url, token, retries = 5) {
   throw lastErr;
 }
 
-async function getAll(endpoint, token, orderby = 'id') {
-  const items = [];
+// Paginação por $skip/$top só é determinística se o $orderby for ÚNICO. Ordenar
+// só por `date`/`dueDate` deixa a ordem livre entre páginas: o corte cai em lugar
+// diferente a cada coleta e registros somem/repetem (ALL_TX oscilou 9138 vs 9163
+// entre duas coletas do mesmo periodo — Ornata, jul/26, e as categorias nao
+// batiam). Sempre passe um desempate unico + idField pro dedupe.
+async function getAll(endpoint, token, orderby = 'id', idField) {
+  const seen = new Map();
   let skip = 0;
   let total = null;
+  let n = 0;
   while (true) {
-    const url = `${BASE}/${endpoint}?$skip=${skip}&$top=${PAGE_SIZE}&$orderby=${orderby}`;
+    const url = `${BASE}/${endpoint}?$skip=${skip}&$top=${PAGE_SIZE}&$orderby=${encodeURIComponent(orderby)}`;
     const j = await getJson(url, token);
     const batch = j.items || [];
-    items.push(...batch);
+    // Rede de seguranca: dedupe por chave unica caso a ordenacao ainda escorregue.
+    for (const x of batch) seen.set(idField && x[idField] != null ? x[idField] : `#${n++}`, x);
     if (total == null && typeof j.count === 'number') total = j.count;
     if (batch.length < PAGE_SIZE) break;
     skip += PAGE_SIZE;
-    if (total != null && items.length >= total) break;
+    if (total != null && seen.size >= total) break;
   }
-  return items;
+  return [...seen.values()];
 }
 
 // Mapeamento subcategoria → centro de custo (plano de contas Notavel Aroma).
@@ -151,19 +158,19 @@ module.exports = {
     console.log('=== Nibo API pull ===');
 
     console.log('  schedules...');
-    const schedules = await getAll('empresas/v1/schedules', token, 'dueDate');
+    const schedules = await getAll('empresas/v1/schedules', token, 'dueDate,scheduleId', 'scheduleId');
     console.log(`    ${schedules.length} schedules`);
 
     console.log('  categories...');
-    const scheduleCategories = await getAll('empresas/v1/categories', token, 'name');
+    const scheduleCategories = await getAll('empresas/v1/categories', token, 'name', 'id');
     console.log(`    ${scheduleCategories.length} categorias`);
 
     console.log('  receipts (entradas detalhadas)...');
-    const receipts = await getAll('empresas/v1/receipts', token, 'date');
+    const receipts = await getAll('empresas/v1/receipts', token, 'date,entryId', 'entryId');
     console.log(`    ${receipts.length} recebimentos`);
 
     console.log('  payments (saidas detalhadas)...');
-    const payments = await getAll('empresas/v1/payments', token, 'date');
+    const payments = await getAll('empresas/v1/payments', token, 'date,entryId', 'entryId');
     console.log(`    ${payments.length} pagamentos`);
 
     // Index categorias por id. Em /categories, o "parent" (secao DRE) vem em group.name.
