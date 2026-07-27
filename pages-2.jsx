@@ -48,16 +48,47 @@ function biShades(n) {
 // Lê BIT_EXTRAS.saldos.monthly (gerado por fetch-saldos.cjs: saldo real de cada
 // conta no último dia de cada mês). Gráfico de linhas multi-conta interativo +
 // matriz-tabela. Escopa por empresa quando o header filtra (Ornata multi-org).
-const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
+// Variação de caixa de um mês pro outro, sobre o SALDO BANCÁRIO REAL.
+// Porcentagem só faz sentido quando os dois meses têm o mesmo sinal e o
+// anterior não é zero — fora disso o número engana (dividir por ~0 explode, e
+// "de -50k pra +20k" não é -140%). Nesses casos devolve a variação em R$.
+const varCaixa = (cur, prev) => {
+  if (prev == null || cur == null) return { tipo: 'na' };
+  const d = cur - prev;
+  if (Math.abs(d) < 0.005) return { tipo: 'pct', pct: 0, delta: 0 };
+  if (Math.abs(prev) < 0.005) return { tipo: 'abs', delta: d };       // base zero
+  if ((prev < 0) !== (cur < 0)) return { tipo: 'abs', delta: d };     // virou de sinal
+  return { tipo: 'pct', pct: (d / Math.abs(prev)) * 100, delta: d };
+};
+const varTexto = (v, fmt) => {
+  if (!v || v.tipo === 'na') return '—';
+  if (v.tipo === 'abs') return (v.delta >= 0 ? '+' : '') + fmt(v.delta);
+  return (v.pct >= 0 ? '+' : '') + v.pct.toFixed(1).replace('.', ',') + '%';
+};
+const varCor = (v) => {
+  if (!v || v.tipo === 'na' || (v.tipo === 'pct' && v.pct === 0)) return 'var(--mute)';
+  return (v.tipo === 'pct' ? v.pct : v.delta) >= 0 ? 'var(--green)' : 'var(--red)';
+};
+
+const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile, year }) => {
   const [hoverIdx, setHoverIdx] = useState(null); // mês selecionado por CLIQUE (null = nada aberto)
   const [oculta, setOculta] = useState({});
   const [hoverRow, setHoverRow] = useState(null);
   const monthly = (saldos && saldos.monthly) || null;
 
-  const scoped = useMemo(() => (monthly || []).map(m => ({
+  // Escopa pelo ano do header. `mes` vem como "2026-01"; entradas antigas de
+  // data-extras.js (geradas antes do multi-ano) não têm `ano` — nesse caso cai
+  // no prefixo de `mes`. Sem ano definido, mostra tudo.
+  const doAno = useMemo(() => {
+    const all = monthly || [];
+    if (!year) return all;
+    return all.filter(m => (m.ano != null ? m.ano : parseInt(String(m.mes || '').slice(0, 4), 10)) === Number(year));
+  }, [monthly, year]);
+
+  const scoped = useMemo(() => doAno.map(m => ({
     label: m.label, parcial: m.parcial,
     contas: headerEmp ? ((m.empresas && m.empresas[headerEmp] && m.empresas[headerEmp].contas) || {}) : (m.contas || {}),
-  })), [monthly, headerEmp]);
+  })), [doAno, headerEmp]);
 
   const nomes = useMemo(() => {
     const peso = new Map();
@@ -67,6 +98,20 @@ const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
 
   const cores = useMemo(() => { const p = biShades(nomes.length); const o = {}; nomes.forEach((n, i) => o[n] = p[i]); return o; }, [nomes]);
 
+  // Trocar de ano/empresa remonta a série: o mês aberto por clique não aponta
+  // mais pro mesmo lugar (e pode estourar o fim do array). Fecha o tooltip.
+  useEffect(() => { setHoverIdx(null); }, [year, headerEmp]);
+
+  // Sem saldo real no ano pedido (conta aberta depois, ou ano futuro): avisa em
+  // vez de sumir com o bloco, senão parece que o filtro quebrou.
+  if (monthly && monthly.length > 0 && scoped.length === 0) {
+    return (
+      <div style={{ marginTop: 22, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+        <div className="kpi-label" style={{ marginBottom: 6 }}>Saldo por conta (fim de cada mês)</div>
+        <div className="status-line">Sem saldo bancário registrado em {year}. O histórico de saldo real começa em {String((monthly[0] || {}).mes || '').slice(0, 4)}.</div>
+      </div>
+    );
+  }
   if (!monthly || monthly.length === 0 || nomes.length === 0) return null;
 
   const ativos = nomes.filter(n => !oculta[n]);
@@ -87,9 +132,30 @@ const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
   const tipAlign = tipPct < 18 ? 'left' : tipPct > 82 ? 'right' : 'center';
   const totalMes = (m) => ativos.reduce((s, n) => s + (m.contas[n] || 0), 0);
 
+  // Crescimento/diminuição de caixa de um mês pro outro (pedido do cliente).
+  // Base = saldo bancário real do mês, já escopado por empresa e pelas contas
+  // visíveis — bate com a linha "Total" logo acima.
+  const totais = scoped.map(totalMes);
+  const varsTotal = totais.map((v, i) => (i === 0 ? { tipo: 'na' } : varCaixa(v, totais[i - 1])));
+  const varConta = (n, i) => (i === 0 ? { tipo: 'na' } : varCaixa(scoped[i].contas[n], scoped[i - 1].contas[n]));
+  // Destaque: último mês fechado do ano (ou o parcial, se for o único).
+  const ultIdx = scoped.length - 1;
+  const ultVar = varsTotal[ultIdx];
+
   return (
     <div style={{ marginTop: 22, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-      <div className="kpi-label" style={{ marginBottom: 10 }}>Saldo por conta (fim de cada mês)</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+        <div className="kpi-label">Saldo por conta (fim de cada mês)</div>
+        {ultIdx > 0 && ultVar && ultVar.tipo !== 'na' && (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 11, color: 'var(--mute)' }}>
+            <span>Caixa em {scoped[ultIdx].label}{scoped[ultIdx].parcial ? ' (parcial)' : ''} vs {scoped[ultIdx - 1].label}:</span>
+            <b style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: varCor(ultVar) }}>
+              {(ultVar.tipo === 'pct' ? (ultVar.pct >= 0 ? '▲ ' : '▼ ') : '')}{varTexto(ultVar, fmt)}
+            </b>
+            {ultVar.tipo === 'pct' && <span style={{ fontFamily: 'var(--font-mono)' }}>({ultVar.delta >= 0 ? '+' : ''}{fmt(ultVar.delta)})</span>}
+          </div>
+        )}
+      </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginBottom: 10 }}>
         {nomes.map(n => (
@@ -118,16 +184,25 @@ const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
         {hoverIdx != null && (
           <div style={{ position: 'absolute', top: 0, left: tipAlign === 'center' ? `${tipPct}%` : tipAlign === 'left' ? 0 : undefined, right: tipAlign === 'right' ? 0 : undefined, transform: tipAlign === 'center' ? 'translateX(-50%)' : 'none', background: 'var(--bg-4)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '8px 10px', pointerEvents: 'none', zIndex: 5, minWidth: 150, boxShadow: '0 6px 20px rgba(0,0,0,0.5)' }}>
             <div style={{ fontSize: 11, color: 'var(--fg-2)', marginBottom: 6, fontWeight: 600 }}>{scoped[hoverIdx].label}{scoped[hoverIdx].parcial ? ' (parcial)' : ''}</div>
-            {ativos.map(n => { const v = scoped[hoverIdx].contas[n]; return (
+            {ativos.map(n => { const v = scoped[hoverIdx].contas[n]; const vc = varConta(n, hoverIdx); return (
               <div key={n} style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontSize: 11, marginBottom: 2 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--fg-2)' }}><span style={{ width: 8, height: 8, borderRadius: 2, background: cores[n] }} />{n}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', color: v == null ? 'var(--mute)' : v < 0 ? 'var(--red)' : 'var(--fg)' }}>{v == null ? '—' : fmt(v)}</span>
+                <span style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: v == null ? 'var(--mute)' : v < 0 ? 'var(--red)' : 'var(--fg)' }}>{v == null ? '—' : fmt(v)}</span>
+                  {hoverIdx > 0 && vc.tipo !== 'na' && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: varCor(vc), minWidth: 52, textAlign: 'right' }}>{varTexto(vc, fmt)}</span>}
+                </span>
               </div>
             ); })}
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontSize: 11, marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--line)', fontWeight: 700 }}>
               <span style={{ color: 'var(--cyan)' }}>Total</span>
               <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--cyan)' }}>{fmt(totalMes(scoped[hoverIdx]))}</span>
             </div>
+            {hoverIdx > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, fontSize: 11, marginTop: 3 }}>
+                <span style={{ color: 'var(--mute)' }}>vs {scoped[hoverIdx - 1].label}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: varCor(varsTotal[hoverIdx]) }}>{varTexto(varsTotal[hoverIdx], fmt)}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -153,11 +228,20 @@ const SaldoPorContaMensal = ({ saldos, headerEmp, fmt, isMobile }) => {
               <td style={{ textAlign: 'left', padding: '6px 8px', position: 'sticky', left: 0, background: 'var(--bg-3)', color: 'var(--cyan)' }}>Total</td>
               {scoped.map((m, i) => <td key={i} style={{ textAlign: 'right', padding: '6px 8px', fontFamily: 'var(--font-mono)', color: 'var(--cyan)', background: hoverIdx === i ? 'rgba(255,255,255,0.03)' : 'transparent' }}>{fmt(totalMes(m))}</td>)}
             </tr>
+            <tr style={{ fontWeight: 700 }}>
+              <td style={{ textAlign: 'left', padding: '6px 8px', position: 'sticky', left: 0, background: 'var(--bg-3)', color: 'var(--mute)', whiteSpace: 'nowrap' }}>Variação de caixa</td>
+              {varsTotal.map((v, i) => (
+                <td key={i} title={v.tipo === 'pct' ? `${v.delta >= 0 ? '+' : ''}${fmt(v.delta)}` : undefined}
+                  style={{ textAlign: 'right', padding: '6px 8px', fontFamily: 'var(--font-mono)', color: varCor(v), background: hoverIdx === i ? 'rgba(255,255,255,0.03)' : 'transparent' }}>
+                  {i === 0 ? '—' : (v.tipo === 'pct' ? (v.pct > 0 ? '▲' : v.pct < 0 ? '▼' : '') + varTexto(v, fmt) : varTexto(v, fmt))}
+                </td>
+              ))}
+            </tr>
           </tbody>
         </table>
       </div>
       <div className="status-line" style={{ marginTop: 8 }}>
-        Clique num mês (no gráfico ou no cabeçalho) pra ver os saldos daquele mês — clique de novo pra fechar. Clique numa conta pra ocultá-la. Saldo real no último dia de cada mês (reconstruído da NIBO).{scoped.some(m => m.parcial) ? ' * mês em curso (até hoje).' : ''}
+        Clique num mês (no gráfico ou no cabeçalho) pra ver os saldos daquele mês — clique de novo pra fechar. Clique numa conta pra ocultá-la. Saldo real no último dia de cada mês (reconstruído da NIBO). Variação de caixa = saldo do mês sobre o do mês anterior; quando o mês anterior é zero ou o saldo troca de sinal, mostra a diferença em R$ (a % enganaria).{scoped.some(m => m.parcial) ? ' * mês em curso (até hoje).' : ''}
       </div>
     </div>
   );
@@ -1116,25 +1200,37 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
   // Total parado em contas CDB (investimento), escopado pela empresa. Alimenta o toggle Com/Sem CDB.
   const cdbTotal = useMemo(() => Object.entries(scopedContas).reduce((s, [n, v]) => s + (/cdb/i.test(n) ? v : 0), 0), [scopedContas]);
   const hasCDB = Math.abs(cdbTotal) > 0.005;
-  // Movimento líquido por mês (tudo = pago + a vencer). Consolidado usa o segmento estático
-  // (mantém o gráfico atual); por empresa recomputa filtrado via getBit.
+  // Movimento líquido por mês (tudo = pago + a vencer).
+  // Sempre via getBit: o segmento estático SEG.tudo é congelado no REF_YEAR e
+  // ignorava o seletor de ano (Tesouraria ficava presa no ano corrente enquanto
+  // o resto do BI trocava). getBit recomputa em ~10ms e já respeita ano + empresa.
   const saldosMes = useMemo(() => {
-    if (!headerEmp) return (SEG.tudo && SEG.tudo.SALDOS_MES) || B.SALDOS_MES;
     const bt = window.getBit('tudo', null, year, 0, filters);
     return (bt.MONTH_DATA || []).map(m => (m.receita || 0) - (m.despesa || 0));
-  }, [headerEmp, year, filters]);
+  }, [year, filters]);
   // Saldo inicial do ano: usa o saldo real mais antigo da planilha (se disponível) menos os movimentos até o mês desse saldo.
   // Sem isso, parte de 0 e mostra apenas o efeito dos movimentos.
-  const saldoInicial = (function() {
-    if (!SALDOS_REAIS || !SALDOS_REAIS.last) return 0;
-    const lastDate = new Date(SALDOS_REAIS.last.data);
-    const lastMonthIdx = lastDate.getMonth();
-    // Saldo no mês N = saldoInicial + sum(saldosMes[0..N]). Sabemos saldo atual e queremos saldo inicial.
-    // saldoInicial = saldoAtual - sum(saldosMes[0..lastMonthIdx])
-    let acumAteAgora = 0;
-    for (let i = 0; i <= lastMonthIdx; i++) acumAteAgora += saldosMes[i] || 0;
-    return realTotal - acumAteAgora;
-  })();
+  // Ancora a curva acumulada num saldo REAL do ano que está sendo visto. Antes
+  // ancorava sempre no saldo de hoje, o que jogava a curva de um ano passado
+  // para o patamar errado. Usa o último mês com saldo real DENTRO do ano
+  // selecionado: saldoInicial = saldoReal(mês L) − Σ saldosMes[0..L].
+  const saldoInicial = useMemo(() => {
+    const meses = (SALDOS_REAIS && SALDOS_REAIS.monthly) || [];
+    const doAno = meses.filter(m => (m.ano != null ? m.ano : parseInt(String(m.mes || '').slice(0, 4), 10)) === Number(year));
+    if (doAno.length) {
+      const ult = doAno[doAno.length - 1];
+      const idx = parseInt(String(ult.mes).slice(5, 7), 10) - 1;
+      const totalReal = headerEmp
+        ? Object.values((ult.empresas && ult.empresas[headerEmp] && ult.empresas[headerEmp].contas) || {}).reduce((s, v) => s + v, 0)
+        : (ult.total || 0);
+      let acum = 0;
+      for (let i = 0; i <= idx; i++) acum += saldosMes[i] || 0;
+      return totalReal - acum;
+    }
+    // Sem saldo real no ano (histórico começa depois): curva parte do zero e
+    // mostra só o efeito dos movimentos do período.
+    return 0;
+  }, [SALDOS_REAIS, year, headerEmp, saldosMes]);
   const saldosCum = saldosMes.reduce((acc, v, i) => {
     acc.push((acc[i - 1] != null ? acc[i - 1] : saldoInicial) + (v || 0));
     return acc;
@@ -1235,7 +1331,9 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
       <div className="page-title">
         <div>
           <h1>Tesouraria</h1>
-          <div className="status-line"><span className="live-dot" /> Saldos e pulso · {(B.META && B.META.ref_year) || "—"}</div>
+          {/* Ano do SELETOR, nao o ref_year estatico do build — senao a tela
+              continua escrita "2026" depois de trocar pra 2025 no header. */}
+          <div className="status-line"><span className="live-dot" /> Saldos e pulso · {year || (B.META && B.META.ref_year) || "—"}</div>
         </div>
         <div className="actions">
         </div>
@@ -1303,7 +1401,14 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="card-title-row">
               <h2 className="card-title">Saldo atual e projeção</h2>
-              <span className="chip cyan">Última atualização: {last.data.split('-').reverse().join('/')}</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {/* Este bloco é sempre foto de HOJE — não existe "saldo atual de 2025".
+                    Sem o aviso, quem troca o ano no header acha que o card não filtrou. */}
+                {Number(year) !== new Date(last.data).getFullYear() && (
+                  <span className="chip" style={{ background: 'rgba(245,158,11,0.12)', color: '#fcd34d', borderColor: 'rgba(245,158,11,0.28)' }}>Posição de hoje — não muda com o ano</span>
+                )}
+                <span className="chip cyan">Última atualização: {last.data.split('-').reverse().join('/')}</span>
+              </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
               {contas.map(([nome, v]) => (
@@ -1338,14 +1443,16 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
             <div><div className="kpi-label">Saldo Mínimo</div><div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--red)" }}>{B.fmt(sMin)}</div></div>
             <div><div className="kpi-label">Saldo Médio</div><div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--cyan)" }}>{B.fmt(sMed)}</div></div>
             {SALDOS_REAIS && SALDOS_REAIS.last && (
-              <div><div className="kpi-label">Saldo atual (planilha)</div><div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--cyan)" }}>{B.fmt(realTotal)}</div></div>
+              /* Sempre o saldo de hoje. Rotulado com a data pra nao ser lido como
+                 "saldo no fim de {year}" quando o header esta num ano passado. */
+              <div><div className="kpi-label">Saldo real em {SALDOS_REAIS.last.data.split('-').reverse().slice(0, 2).join('/')}</div><div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--cyan)" }}>{B.fmt(realTotal)}</div></div>
             )}
           </div>
           <TrendChart values={saldosCum} labels={B.MONTHS} color="var(--cyan)" height={isMobile ? 160 : 200} showPoints={true} showLabels={!isMobile} gradientId="ts-saldo" interactive valueFmt={B.fmt} tooltipLabel="Saldo acumulado" />
           <div className="status-line" style={{ marginTop: 6 }}>
             Saldo cumulativo: parte de R$ {(B.fmt(saldoInicial) || "0").replace("R$ ", "")} no início do ano e acumula receitas − despesas mês a mês.
           </div>
-          <SaldoPorContaMensal saldos={SALDOS_REAIS} headerEmp={headerEmp} fmt={B.fmt} isMobile={isMobile} />
+          <SaldoPorContaMensal saldos={SALDOS_REAIS} headerEmp={headerEmp} fmt={B.fmt} isMobile={isMobile} year={year} />
         </div>
 
         <div className="card">

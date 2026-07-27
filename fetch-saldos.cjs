@@ -141,21 +141,38 @@ function balancesAt(raw, cutoff) {
   const total = cur.total;
   const last = { data: hoje, total, contas: cur.contas, empresas: cur.empresas };
 
-  // Saldo no fim de cada mês do ano corrente, até o mês atual (mês em curso é
-  // cortado em hoje). Alimenta o gráfico "Saldo por conta (fim de cada mês)".
-  const anoRef = (cfg.meta && cfg.meta.ano_corrente) || new Date().getFullYear();
+  // Saldo no fim de cada mês, do primeiro ano com conta aberta até hoje (mês em
+  // curso é cortado em hoje). Alimenta o gráfico "Saldo por conta (fim de cada
+  // mês)" e a variação % mês a mês.
+  //
+  // Cobre TODOS os anos, não só o corrente: o seletor de ano do header precisa
+  // achar 2025 aqui, senão a Tesouraria fica congelada no ano corrente enquanto
+  // o resto do BI troca (era o caso — reportado pelo cliente em jul/26). Não
+  // custa API: loadOrg() já baixou o histórico inteiro e consolidaEm() é só
+  // aritmética em cima do que está em memória.
   const ML = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   const nowD = new Date();
-  const monthly = [];
-  for (let m = 0; m < 12; m++) {
-    const futuro = anoRef > nowD.getFullYear() || (anoRef === nowD.getFullYear() && m > nowD.getMonth());
-    if (futuro) break;
-    const corrente = anoRef === nowD.getFullYear() && m === nowD.getMonth();
-    const fimMes = new Date(anoRef, m + 1, 0);
-    const cutoff = corrente ? hoje : `${anoRef}-${String(m + 1).padStart(2, '0')}-${String(fimMes.getDate()).padStart(2, '0')}`;
-    const c = consolidaEm(cutoff);
-    monthly.push({ mes: `${anoRef}-${String(m + 1).padStart(2, '0')}`, label: ML[m], date: cutoff, parcial: corrente, total: c.total, contas: c.contas, empresas: c.empresas });
+  const anoAtual = nowD.getFullYear();
+  // Primeiro ano com movimento: menor dateOfOpenBalance entre todas as contas.
+  let anoIni = anoAtual;
+  for (const { raw } of orgRaws) {
+    for (const id of Object.keys(raw)) {
+      const y = parseInt((raw[id].openDate || '').slice(0, 4), 10);
+      if (y && y < anoIni) anoIni = y;
+    }
   }
+  const monthly = [];
+  for (let ano = anoIni; ano <= anoAtual; ano++) {
+    for (let m = 0; m < 12; m++) {
+      if (ano === anoAtual && m > nowD.getMonth()) break;
+      const corrente = ano === anoAtual && m === nowD.getMonth();
+      const fimMes = new Date(ano, m + 1, 0);
+      const cutoff = corrente ? hoje : `${ano}-${String(m + 1).padStart(2, '0')}-${String(fimMes.getDate()).padStart(2, '0')}`;
+      const c = consolidaEm(cutoff);
+      monthly.push({ mes: `${ano}-${String(m + 1).padStart(2, '0')}`, ano, label: ML[m], date: cutoff, parcial: corrente, total: c.total, contas: c.contas, empresas: c.empresas });
+    }
+  }
+  console.log(`  monthly: ${monthly.length} meses (${anoIni}..${anoAtual})`);
 
   const saldos = { daily: [last], last, monthly, contas: Object.keys(cur.contas), empresasList: Object.keys(cur.empresas), fonte: 'nibo-api (openBalance + baixas)' };
 
