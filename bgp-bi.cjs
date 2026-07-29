@@ -175,6 +175,9 @@ function cmdBuild() {
   const steps = [
     { name: 'data', script: 'build-data.cjs', required: true },
     { name: 'data-extras', script: 'build-data-extras.cjs', required: cfg.pages.outros.length > 0 },
+    // Base de vendas por marketplace (XLSX fora do ERP). Roda sempre que o repo
+    // tem o script — ele mesmo se cala se o XLSX nao estiver presente.
+    { name: 'vendas', script: 'build-vendas.cjs', required: true },
     { name: 'jsx bundle', script: 'build-jsx.cjs', required: true },
   ];
   for (const step of steps) {

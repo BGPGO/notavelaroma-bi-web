@@ -27,3 +27,8 @@ Thumbs.db
 #   data.js, data-extras.js, app.bundle.js são committados (Docker COPY)
 #   bi.config.js é committado (config do cliente sem credenciais)
 #   report*.json são committados (relatórios IA pré-gerados)
+
+# Base-fonte de vendas: vem do Supabase Storage no refresh, nunca do git.
+# O artifact vendas-data.js E committado (Docker COPY).
+FATURAMENTO ORNATA DOMUS.xlsx
+_supabase_xlsx/

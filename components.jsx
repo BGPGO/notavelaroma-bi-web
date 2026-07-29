@@ -47,6 +47,11 @@ const Sidebar = ({ active, onSelect, open }) => {
     { id: "fluxo", icon: "flow", label: "Fluxo de Caixa" },
     { id: "tesouraria", icon: "treasury", label: "Tesouraria" },
     { id: "comparativo", icon: "compare", label: "Comparativo" },
+    // Vendas fica no grupo principal (nao em "outros"): e entrega central deste
+    // cliente, substitui o pbix de faturamento por marketplace. A chave de
+    // bi.config vive em pages.outros porque nao faz parte do template canonico —
+    // o merge de BI_PAGE_MODE e flat, entao o modo resolve igual.
+    { id: "vendas", icon: "chart", label: "Vendas Marketplaces" },
     { id: "relatorio", icon: "fileText", label: "Relatório IA", pro: true },
     { id: "valuation", icon: "invest", label: "Valuation", pro: true },
     { id: "diary", icon: "diary", label: "Diário", badge: "EM BREVE" },
@@ -132,6 +137,7 @@ const PAGE_TITLES = {
   detalhado: "Detalhado",
   profunda_cliente: "Profunda Cliente",
   crm: "CRM",
+  vendas: "Vendas Marketplaces",
 };
 
 const DATE_RANGES = [

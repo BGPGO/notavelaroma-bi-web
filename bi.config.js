@@ -20,6 +20,14 @@ module.exports = {
       base_path: "G:/Meu Drive/BGP/CLIENTES/BI/479. ORNATA DOMUS/BASES",
     },
   },
+  // Base de faturamento por marketplace (XLSX mantido pelo cliente, fora do ERP).
+  // O mesmo arquivo cobre os 3 CNPJs do grupo; aqui listamos so os deste BI.
+  // Alimenta a tela "Vendas Marketplaces" (page-vendas.jsx) via build-vendas.cjs.
+  vendas: {
+    arquivo: "FATURAMENTO ORNATA DOMUS.xlsx",
+    arquivo_local: "faturamento-marketplaces.xlsx", // nome no bucket/_supabase_xlsx
+    empresas: ["NOTÁVEL AROMA"],
+  },
   pages: {
     geral: {
       overview: "active",
@@ -32,6 +40,7 @@ module.exports = {
       valuation: "hidden",
     },
     outros: {
+      vendas: "active",
       orcamento: "hidden",
       lojas: "hidden",
       risco: "hidden",

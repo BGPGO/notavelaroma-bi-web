@@ -8,6 +8,7 @@ COPY index.html /usr/share/nginx/html/
 COPY styles.css /usr/share/nginx/html/
 COPY data.js /usr/share/nginx/html/
 COPY data-extras.js /usr/share/nginx/html/
+COPY vendas-data.js /usr/share/nginx/html/
 COPY app.bundle.js /usr/share/nginx/html/
 COPY reports.js /usr/share/nginx/html/
 COPY favicon.ico /usr/share/nginx/html/
