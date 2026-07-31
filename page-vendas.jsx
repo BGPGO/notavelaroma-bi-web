@@ -42,6 +42,20 @@ const vdAddMonths = (s, k) => {
 const VD_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const VD_MES_FULL = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const vdLabelBR = (s) => { const { y, m, d } = vdParse(s); return `${vdPad(d)}/${vdPad(m)}/${y}`; };
+const vdMesLabel = (ym) => { const [y, m] = ym.split("-").map(Number); return `${VD_MES[m - 1]}/${String(y).slice(2)}`; };
+
+// Regressao linear simples sobre uma serie (indice = x). Mesma medida do
+// felizzo-vendas-bi-web. Retorna f(x) e a inclinacao (R$/mes).
+const vdLinReg = (ys) => {
+  const n = ys.length;
+  if (n < 2) return { f: () => ys[0] || 0, slope: 0 };
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  ys.forEach((y, x) => { sx += x; sy += y; sxx += x * x; sxy += x * y; });
+  const den = n * sxx - sx * sx;
+  const slope = den ? (n * sxy - sx * sy) / den : 0;
+  const intercept = (sy - slope * sx) / n;
+  return { f: (x) => intercept + slope * x, slope };
+};
 
 // Toggle K/M ↔ detalhado. Default EXPANDIDO, persiste por tela.
 // Ver feedback_kpi_compact_toggle.
@@ -153,9 +167,11 @@ const VendasDailyChart = ({ atual, anterior, labels, height = 260, labelAtual, l
 };
 
 // ---------- grafico mensal: barras de faturamento + linha de %ADS ----------
-const VendasMonthlyChart = ({ data, height = 250, onBarClick, activeKey }) => {
+const VendasMonthlyChart = ({ data, height = 250, onBarClick, activeKey, proj }) => {
   const B = window.BIT;
-  const maxV = Math.max(1, ...data.map((d) => d.valor));
+  // Meses projetados entram na escala pra barra tracejada nao estourar o topo.
+  const cols = proj && proj.length ? data.concat(proj) : data;
+  const maxV = Math.max(1, ...cols.map((d) => d.valor));
   const rawStep = maxV / 4;
   const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
   const niceStep = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= rawStep) || mag * 10;
@@ -173,16 +189,27 @@ const VendasMonthlyChart = ({ data, height = 250, onBarClick, activeKey }) => {
           </div>
         ))}
         <div className="vendas-mbars-cols">
-          {data.map((d) => {
+          {cols.map((d) => {
+            if (d.projetado) {
+              return (
+                <div key={d.key} className="vendas-mbar-col projetado"
+                  title={`${d.label}: ${B.fmt(d.valor)} — projeção (tendência linear), não é dado realizado`}>
+                  <div className="vendas-mbar proj" style={{ height: `${(d.valor / top) * 100}%` }}>
+                    <span className="chip">{B.fmtK(d.valor)}</span>
+                  </div>
+                </div>
+              );
+            }
             const act = activeKey && activeKey === d.key;
             const dim = activeKey && activeKey !== d.key;
             return (
               <div key={d.key}
                 className={"vendas-mbar-col" + (onBarClick ? " clickable" : "") + (act ? " active" : "") + (dim ? " dimmed" : "")}
                 onClick={onBarClick ? () => onBarClick(d) : undefined}
-                title={`${d.label}: ${B.fmt(d.valor)} · ${d.pedidos.toLocaleString("pt-BR")} pedidos · ADS ${B.fmt(d.ads)} (${d.pctAds.toFixed(2).replace(".", ",")}%)`}
+                title={`${d.label}: ${B.fmt(d.valor)} · ${d.pedidos.toLocaleString("pt-BR")} pedidos · ADS ${B.fmt(d.ads)} (${d.pctAds.toFixed(2).replace(".", ",")}%)`
+                  + (d.parcial ? " · mês em curso (parcial)" : "")}
               >
-                <div className="vendas-mbar" style={{ height: `${(d.valor / top) * 100}%` }}>
+                <div className={"vendas-mbar" + (d.parcial ? " parcial" : "")} style={{ height: `${(d.valor / top) * 100}%` }}>
                   <span className="chip">{B.fmtK(d.valor)}</span>
                 </div>
                 {d.ads > 0 && (
@@ -195,11 +222,12 @@ const VendasMonthlyChart = ({ data, height = 250, onBarClick, activeKey }) => {
         </div>
       </div>
       <div className="vendas-mbars-x">
-        {data.map((d) => <span key={d.key}>{d.label}</span>)}
+        {cols.map((d) => <span key={d.key} className={d.projetado ? "proj" : ""}>{d.label}</span>)}
       </div>
       <div className="vendas-legend">
         <span><i className="sw cyan" />Faturamento</span>
         <span><i className="sw amber-dot" />% ADS sobre faturamento</span>
+        {proj && proj.length > 0 && <span><i className="sw proj" />Projeção (tendência linear)</span>}
       </div>
     </div>
   );
@@ -230,6 +258,10 @@ const PageVendas = () => {
   const MULTI_EMP = V.empresas.length > 1;
   const DE = V.periodo.de;
   const ATE = V.periodo.ate_com_dado || V.periodo.ate;
+  // Mes em que a base termina e se ele esta pela metade — usado tanto pra marcar a
+  // barra parcial no grafico quanto pra normalizar o ajuste da projecao.
+  const AMES = ATE.slice(0, 7);
+  const mesParcial = ATE < vdMonthEnd(ATE);
 
   // ---------- estado do filtro proprio da tela ----------
   const [preset, setPreset] = React.useState("mes_atual");
@@ -370,11 +402,66 @@ const PageVendas = () => {
       o.valor += r[IDX.valor]; o.pedidos += r[IDX.ped]; o.ads += r[IDX.ads];
       map.set(k, o);
     }
-    return [...map.values()].sort((a, b) => (a.key < b.key ? -1 : 1)).map((o) => {
-      const [y, m] = o.key.split("-").map(Number);
-      return { ...o, label: `${VD_MES[m - 1]}/${String(y).slice(2)}`, pctAds: o.valor > 0 ? (o.ads / o.valor) * 100 : 0 };
+    return [...map.values()].sort((a, b) => (a.key < b.key ? -1 : 1)).map((o) => ({
+      ...o,
+      label: vdMesLabel(o.key),
+      pctAds: o.valor > 0 ? (o.ads / o.valor) * 100 : 0,
+      parcial: o.key === AMES && mesParcial,
+    }));
+  }, [V.rows, range, passa, AMES, mesParcial]);
+
+  // ---------- projecao de faturamento (tendencia linear sobre a serie mensal) ----------
+  // Mesma medida do felizzo-vendas-bi-web (regressao linear + 3 meses a frente),
+  // com duas diferencas deliberadas por causa desta base:
+  //  1. O ajuste usa o HISTORICO COMPLETO (respeitando empresa/marketplace), nao o
+  //     periodo selecionado. Escolher "Julho" deixaria 1 ponto e a projecao sumiria;
+  //     o filtro de periodo controla o que se ve, nao a tendencia.
+  //  2. O mes em curso entra NORMALIZADO pra mes cheio (run-rate). Cru, ele puxaria
+  //     a reta pra baixo so por estar pela metade. Com menos de 7 dias corridos nem
+  //     normalizado serve — a extrapolacao fica ruidosa demais — entao sai do ajuste.
+  const mensalFull = React.useMemo(() => {
+    const map = new Map();
+    for (const r of V.rows) {
+      if (!passa(r)) continue;
+      const k = r[IDX.dia].slice(0, 7);
+      map.set(k, (map.get(k) || 0) + r[IDX.valor]);
+    }
+    const pAte = vdParse(ATE);
+    const dimAte = vdDaysInMonth(pAte.y, pAte.m);
+    return [...map.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([key, valor]) => {
+      const parcial = key === AMES && mesParcial;
+      if (!parcial) return { key, valor, fit: valor, fitOk: true };
+      return { key, valor, fit: valor * (dimAte / pAte.d), fitOk: pAte.d >= 7 };
     });
-  }, [V.rows, range, passa]);
+  }, [V.rows, passa, AMES, mesParcial, ATE]);
+
+  // 12 meses = 1 ciclo sazonal. Janela maior faz a reta virar media historica e
+  // perder a tendencia recente; menor fica refem de pico de Black Friday/Natal.
+  const projecaoMensal = React.useMemo(() => {
+    const serieFit = mensalFull.slice(-12).filter((o) => o.fitOk);
+    // Com 2 pontos a "regressao" e so ligar os pontos — nao vale chamar de tendencia.
+    if (serieFit.length < 3 || !mensalFull.length) return null;
+    const reg = vdLinReg(serieFit.map((o) => o.fit));
+    // Ancora no ULTIMO mes observado, nao no ponto da reta ajustada. Numa curva de
+    // crescimento acelerado a reta corre por baixo do ritmo atual (Notavel Aroma:
+    // ajuste 620k contra 726k reais em jul/26) e a projecao sairia MENOR que o mes
+    // corrente — o cliente leria "vai cair" onde o dado diz o contrario. A gente
+    // mantem a INCLINACAO da regressao, que e a tendencia; muda so de onde parte.
+    const ancora = serieFit[serieFit.length - 1];
+    // Se o mes em curso ficou fora do ajuste (poucos dias corridos), a ancora e o
+    // mes anterior — entao a extrapolacao precisa andar esse passo a mais.
+    const gap = mensalFull.length - 1 - mensalFull.indexOf(ancora);
+    const ultimo = mensalFull[mensalFull.length - 1].key;
+    const meses = [1, 2, 3].map((k) => {
+      const key = vdAddMonths(`${ultimo}-01`, k).slice(0, 7);
+      return { key, label: vdMesLabel(key), valor: Math.max(0, ancora.fit + reg.slope * (gap + k)), projetado: true };
+    });
+    return { meses, slope: reg.slope, apoio: serieFit.length };
+  }, [mensalFull]);
+
+  // Só estende o grafico quando a visao chega no fim da base — projetar depois de
+  // um periodo historico ("2025") desenharia uma reta solta no meio da serie.
+  const projNoGrafico = projecaoMensal && range.ate >= ATE ? projecaoMensal.meses : null;
 
   // ---------- tabela por marketplace ----------
   const tabela = React.useMemo(() => {
@@ -422,6 +509,14 @@ const PageVendas = () => {
           <div className="status-line">
             Base atualizada até <b>{vdLabelBR(ATE)}</b>
             {V.escopo && V.escopo.length ? ` · ${V.escopo.join(" + ")}` : ""}
+            {/* Se o build nao conseguiu ler a planilha do Drive, ele usou o ultimo
+                retrato. Falar isso e melhor que mostrar numero velho como se fosse
+                do dia — foi exatamente essa confusao que motivou a mudanca. */}
+            {V.ao_vivo === false && (
+              <span className="vendas-stale" title="O último refresh não conseguiu ler a planilha do Drive e usou a cópia anterior. Confira o compartilhamento do arquivo.">
+                {" · "}cópia local
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -483,6 +578,14 @@ const PageVendas = () => {
           <span className="kpi-toggle-hint">{kpiFmt.expandIcon}</span>
           <KpiTile label="Faturamento bruto" tone="cyan" value={fv(cur.valor).value} unit={fv(cur.valor).unit} {...dl(cur.valor, prev.valor)} />
         </div>
+        {projecaoMensal && (
+          <div className="kpi-clickable-container" onClick={kpiFmt.toggle}
+            title={`Ritmo do último mês projetado pela tendência dos últimos ${projecaoMensal.apoio} meses (${window.BIT.fmt(projecaoMensal.slope)}/mês). O mês em curso entra normalizado para mês cheio. Não depende do filtro de período.`}>
+            <span className="kpi-toggle-hint">{kpiFmt.expandIcon}</span>
+            <KpiTile label={`Projeção ${projecaoMensal.meses[0].label}`} tone="amber"
+              value={fv(projecaoMensal.meses[0].valor).value} unit={fv(projecaoMensal.meses[0].valor).unit} />
+          </div>
+        )}
         <KpiTile label="Pedidos" nonMonetary value={cur.pedidos.toLocaleString("pt-BR")} {...dl(cur.pedidos, prev.pedidos)} />
         <div className="kpi-clickable-container" onClick={kpiFmt.toggle} title={kpiFmt.tooltipHint}>
           <span className="kpi-toggle-hint">{kpiFmt.expandIcon}</span>
@@ -495,7 +598,10 @@ const PageVendas = () => {
         {periodoIncompleto && (
           <div className="kpi-clickable-container" onClick={kpiFmt.toggle} title={kpiFmt.tooltipHint}>
             <span className="kpi-toggle-hint">{kpiFmt.expandIcon}</span>
-            <KpiTile label={`Projeção (${diasPeriodo} dias)`} tone="amber" value={fv(projecao).value} unit={fv(projecao).unit} />
+            {/* Medida PROJECAO do pbix (media diaria x dias do periodo). Fala do
+                fechamento DESTE periodo — nao confundir com a "Projeção <mês>",
+                que e tendencia linear pra frente. Dai o rotulo explicito. */}
+            <KpiTile label={`Fechamento projetado (${diasPeriodo}d)`} value={fv(projecao).value} unit={fv(projecao).unit} />
           </div>
         )}
         <div className="kpi-clickable-container" onClick={kpiFmt.toggle} title={kpiFmt.tooltipHint}>
@@ -526,8 +632,15 @@ const PageVendas = () => {
       {/* -------- grafico mensal -------- */}
       {mensal.length > 1 && (
         <div className="card">
-          <h2 className="card-title">Faturamento por mês</h2>
-          <VendasMonthlyChart data={mensal} onBarClick={(d) => {
+          <div className="card-title-row">
+            <h2 className="card-title">Faturamento por mês</h2>
+            {projNoGrafico && (
+              <span style={{ fontSize: 11.5, color: "var(--mute)" }}>
+                tracejado = projeção · ritmo atual + tendência de {projecaoMensal.apoio} meses
+              </span>
+            )}
+          </div>
+          <VendasMonthlyChart data={mensal} proj={projNoGrafico} onBarClick={(d) => {
             const [y, m] = d.key.split("-").map(Number);
             setCustomDe(vdKey(y, m, 1));
             setCustomAte(vdKey(y, m, vdDaysInMonth(y, m)) > ATE ? ATE : vdKey(y, m, vdDaysInMonth(y, m)));

@@ -24,6 +24,10 @@ module.exports = {
   // O mesmo arquivo cobre os 3 CNPJs do grupo; aqui listamos so os deste BI.
   // Alimenta a tela "Vendas Marketplaces" (page-vendas.jsx) via build-vendas.cjs.
   vendas: {
+    // Planilha VIVA no Drive — fonte de verdade, baixada a cada refresh. Mesmo
+    // arquivo do ornatadomus-bi-web: um XLSX cobre os 3 CNPJs do grupo.
+    // Exige compartilhamento "Qualquer pessoa com o link → Leitor".
+    sheets_id: "11pFiqLOFIRObtzafe8ifJaF2ETm_p_3I",
     arquivo: "FATURAMENTO ORNATA DOMUS.xlsx",
     arquivo_local: "faturamento-marketplaces.xlsx", // nome no bucket/_supabase_xlsx
     empresas: ["NOTÁVEL AROMA"],

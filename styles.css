@@ -3608,6 +3608,32 @@ table.t tr.total td {
   flex: 1; text-align: center; font-size: 10px; color: var(--mute); font-family: var(--font-mono);
 }
 
+/* -------- meses projetados (tendencia linear) --------
+   Barra vazada + tracejada: tem que ler como "isso nao aconteceu" a distancia,
+   sem depender do rotulo. Mesma logica do tracejado de periodo anterior. */
+.vendas-mbar-col.projetado { cursor: help; }
+.vendas-mbar.proj {
+  background: repeating-linear-gradient(
+    135deg, rgba(245, 158, 11, 0.20) 0 5px, transparent 5px 10px
+  );
+  border: 1px dashed var(--amber);
+  border-bottom: none;
+  opacity: 0.85;
+}
+.vendas-mbar-col.projetado:hover .vendas-mbar.proj { opacity: 1; filter: none; }
+.vendas-mbar.proj .chip { color: var(--amber); }
+/* Mes em curso: mesma barra cheia, so mais apagada — o dado e real, so incompleto. */
+.vendas-mbar.parcial { opacity: 0.55; }
+.vendas-mbars-x span.proj { color: var(--amber); opacity: 0.75; }
+/* Selo de "dado nao veio da planilha viva" — discreto, mas visivel. */
+.vendas-stale {
+  color: var(--amber); font-weight: 600; cursor: help;
+  border-bottom: 1px dotted var(--amber);
+}
+.vendas-legend .sw.proj {
+  height: 0; border-top: 2px dashed var(--amber); border-radius: 0;
+}
+
 /* -------- tabela -------- */
 .vendas-t th { white-space: nowrap; }
 .vendas-t th:hover { color: var(--text); }

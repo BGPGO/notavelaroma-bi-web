@@ -12,9 +12,16 @@
  * feitas a mao (uma por mes/ano). Aqui vira UMA tela com filtro de data.
  *
  * Onde o XLSX e procurado, em ordem:
- *   1. _supabase_xlsx/  → escrito pelo bi-refresh-worker (download do bucket)
- *   2. raiz do repo     → dev local
+ *   0. Google Drive/Sheets  → vendas.sheets_id (a planilha VIVA que o cliente edita)
+ *   1. _supabase_xlsx/      → escrito pelo bi-refresh-worker (download do bucket)
+ *   2. raiz do repo         → dev local
  *   3. vendas.base_path do bi.config.js (se setado)
+ *
+ * O (0) e a fonte de verdade: o cliente mantem a planilha no Drive e ela muda o
+ * dia todo. O (1) e so um retrato, que so mexe quando alguem sobe a mao — era por
+ * isso que esta tela ficava dias atras do resto do BI enquanto o financeiro (NIBO
+ * API) vinha ao vivo. Os niveis 1-3 continuam como rede de seguranca: se o Drive
+ * cair ou perder o compartilhamento, o BI usa o ultimo retrato em vez de zerar.
  *
  * Saida: vendas-data.js com window.BIT_VENDAS. Sem o arquivo, a tela se esconde
  * sozinha (page-vendas.jsx trata BIT_VENDAS ausente), então build nao quebra.
@@ -44,6 +51,61 @@ function findSource() {
   ];
   if (VCFG.base_path) cands.push(path.join(VCFG.base_path, FILE_NAME));
   for (const c of cands) if (fs.existsSync(c)) return c;
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Download da planilha viva do Google Drive
+// ---------------------------------------------------------------------------
+// A planilha e um XLSX HOSPEDADO no Drive (link com rtpof=true), nao um Google
+// Sheets nativo — entao nao existe aba pra puxar por gviz/CSV; a gente baixa o
+// arquivo inteiro e le com o mesmo parser de sempre.
+//
+// PRE-REQUISITO: compartilhamento "Qualquer pessoa com o link → Leitor". Sem
+// isso o Google devolve a pagina de login (HTML) em vez do arquivo, e o build
+// cai no retrato do Supabase. O erro e explicito no log, nao silencioso.
+const SHEETS_ID = process.env.VENDAS_SHEETS_ID || VCFG.sheets_id || null;
+const CACHE_DIR = path.join(ROOT, '_vendas_src');
+
+function endpointsFor(id) {
+  const key = process.env.GOOGLE_API_KEY;
+  const eps = [];
+  // Drive API e o caminho de primeira classe pra arquivo hospedado, mas so com
+  // chave. Fica opcional pra nao exigir projeto GCP so pra isso.
+  if (key) eps.push({ nome: 'drive-api', url: `https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${key}` });
+  eps.push({ nome: 'docs-export', url: `https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx` });
+  eps.push({ nome: 'drive-download', url: `https://drive.usercontent.google.com/download?id=${id}&export=download` });
+  return eps;
+}
+
+async function baixarDoDrive(id) {
+  if (typeof fetch !== 'function') {
+    console.log('AVISO vendas: runtime sem fetch global (Node < 18) — pulando download do Drive');
+    return null;
+  }
+  for (const ep of endpointsFor(id)) {
+    try {
+      const res = await fetch(ep.url, { redirect: 'follow', signal: AbortSignal.timeout(60000) });
+      const buf = Buffer.from(await res.arrayBuffer());
+      // XLSX e um zip: tem que comecar com "PK". Se veio HTML, e a tela de login
+      // ou de erro do Google — 200 OK com corpo errado, o pior tipo de falha.
+      if (!res.ok || buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
+        const dica = buf.slice(0, 400).toString('utf8').includes('accounts.google.com')
+          || /<html/i.test(buf.slice(0, 400).toString('utf8'))
+          ? 'respondeu HTML (tela de login) — a planilha nao esta com "Qualquer pessoa com o link"'
+          : `HTTP ${res.status}, ${buf.length} bytes, nao e XLSX`;
+        console.log(`AVISO vendas: ${ep.nome} ${dica}`);
+        continue;
+      }
+      fs.mkdirSync(CACHE_DIR, { recursive: true });
+      const dest = path.join(CACHE_DIR, 'faturamento-drive.xlsx');
+      fs.writeFileSync(dest, buf);
+      console.log(`vendas: planilha baixada do Drive via ${ep.nome} (${(buf.length / 1024).toFixed(0)} KB)`);
+      return dest;
+    } catch (e) {
+      console.log(`AVISO vendas: ${ep.nome} falhou — ${e.message}`);
+    }
+  }
   return null;
 }
 
@@ -89,13 +151,23 @@ function slugify(s) {
     .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 }
 
-function main() {
-  const src = findSource();
+async function main() {
+  // Planilha viva primeiro; retrato so como rede de seguranca.
+  let src = SHEETS_ID ? await baixarDoDrive(SHEETS_ID) : null;
+  const aoVivo = !!src;
+  if (!src) src = findSource();
   if (!src) {
     console.log(`AVISO vendas: "${FILE_NAME}" nao encontrado — vendas-data.js nao gerado (tela Vendas fica oculta)`);
     // Nao apaga um vendas-data.js pre-existente: melhor dado velho que tela vazia.
     if (!fs.existsSync(OUT)) fs.writeFileSync(OUT, '/* sem base de vendas */\nwindow.BIT_VENDAS = null;\n');
     return;
+  }
+  if (SHEETS_ID && !aoVivo) {
+    console.log('AVISO vendas: Drive indisponivel — caindo no RETRATO local. O dado'
+      + ' pode estar dias atras da planilha; a tela avisa isso pro usuario.');
+  } else if (!SHEETS_ID) {
+    console.log('AVISO vendas: vendas.sheets_id nao configurado — so o retrato estatico'
+      + ' (esta tela nao acompanha a planilha do cliente)');
   }
   console.log(`vendas: lendo ${path.relative(ROOT, src)}`);
   const wb = XLSX.readFile(src, { cellDates: true });
@@ -210,7 +282,9 @@ function main() {
   const adsDesde = rows.filter(r => r.ads > 0).map(r => r.d).sort()[0] || null;
 
   const payload = {
-    fonte: `xlsx:${path.basename(src)}`,
+    fonte: aoVivo ? `google-drive:${SHEETS_ID}` : `xlsx:${path.basename(src)}`,
+    // A tela usa isso pra avisar quando esta lendo retrato em vez da planilha viva.
+    ao_vivo: aoVivo,
     gerado_em: new Date().toISOString(),
     empresas, marketplaces, lojas,
     empresa_slugs: empresas.map(slugify),
@@ -236,7 +310,7 @@ function main() {
   console.log(`   periodo: ${minDia} -> ${maxDiaComDado} | fat R$ ${brl(totalFat)} | ${totalPed.toLocaleString('pt-BR')} pedidos | ads R$ ${brl(totalAds)}`);
 }
 
-try { main(); } catch (e) {
+main().catch((e) => {
   console.error('ERR vendas:', e.message);
   process.exit(1);
-}
+});

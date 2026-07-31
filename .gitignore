@@ -32,3 +32,6 @@ Thumbs.db
 # O artifact vendas-data.js E committado (Docker COPY).
 FATURAMENTO ORNATA DOMUS.xlsx
 _supabase_xlsx/
+
+# Download da planilha viva do Drive (build-vendas.cjs). Regenerado a cada build.
+_vendas_src/
