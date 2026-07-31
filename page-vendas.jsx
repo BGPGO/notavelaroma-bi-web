@@ -354,11 +354,24 @@ const PageVendas = () => {
   const diasPeriodo = vdDiffDays(range.de, range.ate) + 1;
   const fimReal = range.ate < ATE ? range.ate : ATE;
   const diasDecorridos = Math.max(1, Math.min(diasPeriodo, vdDiffDays(range.de, fimReal) + 1));
-  const periodoIncompleto = diasDecorridos < diasPeriodo;
+
+  // HORIZONTE DE FECHAMENTO — nao e o mesmo que o range do grafico.
+  // O preset "mes em curso" termina no ultimo dia COM DADO (28/07) pra nao
+  // desenhar dias vazios na serie diaria. Mas o fechamento que interessa e o do
+  // MES INTEIRO. Usando range.ate direto, diasPeriodo == diasDecorridos e a
+  // projecao nunca aparecia justamente na tela onde ela e mais util. Entao:
+  // se o range comeca no dia 1 e vive dentro de um unico mes, o alvo e o mes cheio.
+  const alvo = React.useMemo(() => {
+    const pDe = vdParse(range.de), pAte = vdParse(range.ate);
+    const mesmoMes = pDe.y === pAte.y && pDe.m === pAte.m;
+    return mesmoMes && pDe.d === 1 ? vdMonthEnd(range.ate) : range.ate;
+  }, [range]);
+  const diasAlvo = Math.max(diasPeriodo, vdDiffDays(range.de, alvo) + 1);
+  const periodoIncompleto = diasDecorridos < diasAlvo;
 
   const ticket = cur.pedidos > 0 ? cur.valor / cur.pedidos : 0;
   const mediaDia = cur.valor / diasDecorridos;
-  const projecao = mediaDia * diasPeriodo;
+  const projecao = mediaDia * diasAlvo;
   const pctAds = cur.valor > 0 ? (cur.ads / cur.valor) * 100 : 0;
 
   const prevTicket = prev.pedidos > 0 ? prev.valor / prev.pedidos : 0;
@@ -471,6 +484,10 @@ const PageVendas = () => {
       return {
         key: k, mkt: o.mkt, emp: o.emp,
         valor: o.valor, pedidos: o.pedidos, ads: o.ads,
+        // Fechamento do periodo no ritmo atual, por marketplace — a mesma medida
+        // do KPI, so que por linha. Usa o ritmo GLOBAL de dias decorridos, entao
+        // a soma da coluna fecha exatamente com o total (valor_i/d*D somado = V/d*D).
+        projetado: (o.valor / diasDecorridos) * diasAlvo,
         ticket: o.pedidos > 0 ? o.valor / o.pedidos : 0,
         pctAds: o.valor > 0 ? (o.ads / o.valor) * 100 : 0,
         share: cur.valor > 0 ? (o.valor / cur.valor) * 100 : 0,
@@ -485,7 +502,7 @@ const PageVendas = () => {
       return (an - bn) * dir;
     });
     return rows;
-  }, [cur, prev, sortKey, sortDir]);
+  }, [cur, prev, sortKey, sortDir, diasDecorridos, diasAlvo]);
 
   const th = (key, label, cls) => (
     <th className={cls} onClick={() => {
@@ -568,7 +585,7 @@ const PageVendas = () => {
 
         <div className="vendas-filter-foot">
           Comparando <b>{labelAtual}</b> com <b>{labelAnterior}</b>
-          {periodoIncompleto && ` · ${diasDecorridos} de ${diasPeriodo} dias decorridos`}
+          {periodoIncompleto && ` · ${diasDecorridos} de ${diasAlvo} dias decorridos`}
         </div>
       </div>
 
@@ -601,7 +618,7 @@ const PageVendas = () => {
             {/* Medida PROJECAO do pbix (media diaria x dias do periodo). Fala do
                 fechamento DESTE periodo — nao confundir com a "Projeção <mês>",
                 que e tendencia linear pra frente. Dai o rotulo explicito. */}
-            <KpiTile label={`Fechamento projetado (${diasPeriodo}d)`} value={fv(projecao).value} unit={fv(projecao).unit} />
+            <KpiTile label={`Faturamento projetado (${diasAlvo}d)`} value={fv(projecao).value} unit={fv(projecao).unit} />
           </div>
         )}
         <div className="kpi-clickable-container" onClick={kpiFmt.toggle} title={kpiFmt.tooltipHint}>
@@ -653,7 +670,10 @@ const PageVendas = () => {
       <div className="card">
         <div className="card-title-row">
           <h2 className="card-title">Desempenho por marketplace</h2>
-          <span style={{ fontSize: 11.5, color: "var(--mute)" }}>{tabela.length} loja(s) no filtro</span>
+          <span style={{ fontSize: 11.5, color: "var(--mute)" }}>
+            {periodoIncompleto && `projetado = ritmo de ${diasDecorridos}d aplicado aos ${diasAlvo}d · `}
+            {tabela.length} loja(s) no filtro
+          </span>
         </div>
         <div className="t-scroll">
           <table className="t vendas-t">
@@ -662,6 +682,9 @@ const PageVendas = () => {
                 {th("mkt", "Marketplace")}
                 {MULTI_EMP && th("emp", "Empresa")}
                 {th("valor", "Faturamento", "num")}
+                {/* So faz sentido em periodo em curso; num mes fechado seria copia
+                    da coluna de faturamento. */}
+                {periodoIncompleto && th("projetado", "Faturamento projetado", "num")}
                 {th("share", "Share", "num")}
                 {th("pedidos", "Pedidos", "num")}
                 {th("ticket", "Ticket médio", "num")}
@@ -676,6 +699,12 @@ const PageVendas = () => {
                   <td>{r.mkt}</td>
                   {MULTI_EMP && <td style={{ color: "var(--text-2)", fontSize: 12 }}>{r.emp}</td>}
                   <td className="num green">{B.fmt(r.valor)}</td>
+                  {periodoIncompleto && (
+                    <td className="num vendas-proj-cell"
+                      title={`Se ${r.mkt} mantiver o ritmo dos ${diasDecorridos} dias corridos, fecha o período em ${B.fmt(r.projetado)}`}>
+                      {B.fmt(r.projetado)}
+                    </td>
+                  )}
                   <td className="num" style={{ color: "var(--text-2)" }}>{r.share.toFixed(1).replace(".", ",")}%</td>
                   <td className="num">{r.pedidos.toLocaleString("pt-BR")}</td>
                   <td className="num">{B.fmt(r.ticket)}</td>
@@ -687,13 +716,14 @@ const PageVendas = () => {
                 </tr>
               ))}
               {tabela.length === 0 && (
-                <tr><td colSpan={MULTI_EMP ? 9 : 8} style={{ color: "var(--mute)", textAlign: "center", padding: 18 }}>
+                <tr><td colSpan={8 + (MULTI_EMP ? 1 : 0) + (periodoIncompleto ? 1 : 0)} style={{ color: "var(--mute)", textAlign: "center", padding: 18 }}>
                   Sem vendas no filtro selecionado
                 </td></tr>
               )}
               <tr className="total">
                 <td colSpan={MULTI_EMP ? 2 : 1}>Total</td>
                 <td className="num green">{B.fmt(cur.valor)}</td>
+                {periodoIncompleto && <td className="num vendas-proj-cell">{B.fmt(projecao)}</td>}
                 <td className="num">100%</td>
                 <td className="num">{cur.pedidos.toLocaleString("pt-BR")}</td>
                 <td className="num">{B.fmt(ticket)}</td>

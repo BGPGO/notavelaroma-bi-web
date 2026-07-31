@@ -3635,6 +3635,10 @@ table.t tr.total td {
 }
 
 /* -------- tabela -------- */
+/* Coluna de projecao: ambar, igual as barras projetadas do grafico — a cor diz
+   "estimativa" sem precisar reler o cabecalho. */
+.vendas-t .vendas-proj-cell { color: var(--amber); cursor: help; }
+.vendas-t tr.total .vendas-proj-cell { cursor: default; }
 .vendas-t th { white-space: nowrap; }
 .vendas-t th:hover { color: var(--text); }
 
