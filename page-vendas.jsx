@@ -369,6 +369,20 @@ const PageVendas = () => {
   const diasAlvo = Math.max(diasPeriodo, vdDiffDays(range.de, alvo) + 1);
   const periodoIncompleto = diasDecorridos < diasAlvo;
 
+  // AMOSTRA MINIMA PRA PROJETAR. Com poucos dias de mes, o ritmo/dia extrapolado
+  // pro mes cheio devolve numero sem significado: em 03/08/26 agosto tinha 2 dias
+  // (fim de semana de virada de mes) e a coluna projetava R$ 480.734 contra
+  // R$ 911.613 de julho fechado — 53%, que se le como despencada quando e so
+  // amostra. O KPI de tendencia "Projeção <mês>" ja descartava periodo com menos
+  // de 7 dias; a coluna e o KPI de fechamento nao tinham essa guarda.
+  //
+  // A coluna continua VISIVEL e so o valor e suprimido. Esconder a coluna gera o
+  // ticket de "essa coluna nao foi colocada no BI" — foi exatamente o que
+  // aconteceu em 03/08/26, quando ela sumiu nos presets de periodo fechado.
+  const MIN_DIAS_PROJ = 7;
+  const amostraFraca = periodoIncompleto && diasDecorridos < MIN_DIAS_PROJ;
+  const avisoAmostra = `Amostra insuficiente para projetar: ${diasDecorridos} de ${MIN_DIAS_PROJ} dias mínimos. Com ${diasDecorridos} dia(s) o ritmo diário extrapolado para ${diasAlvo} dias não tem significado estatístico.`;
+
   const ticket = cur.pedidos > 0 ? cur.valor / cur.pedidos : 0;
   const mediaDia = cur.valor / diasDecorridos;
   const projecao = mediaDia * diasAlvo;
@@ -586,6 +600,7 @@ const PageVendas = () => {
         <div className="vendas-filter-foot">
           Comparando <b>{labelAtual}</b> com <b>{labelAnterior}</b>
           {periodoIncompleto && ` · ${diasDecorridos} de ${diasAlvo} dias decorridos`}
+          {amostraFraca && ` · projeção aguardando ${MIN_DIAS_PROJ} dias de dado`}
         </div>
       </div>
 
@@ -612,7 +627,14 @@ const PageVendas = () => {
           <span className="kpi-toggle-hint">{kpiFmt.expandIcon}</span>
           <KpiTile label="Média por dia" value={fv(mediaDia).value} unit={fv(mediaDia).unit} {...dl(mediaDia, prevMediaDia)} />
         </div>
-        {periodoIncompleto && (
+        {periodoIncompleto && amostraFraca && (
+          /* Mesma medida da coluna — tem que obedecer a MESMA guarda, senão o KPI
+             mostra um número que a tabela suprime e a tela se contradiz. */
+          <div title={avisoAmostra}>
+            <KpiTile label={`Faturamento projetado (${diasAlvo}d)`} nonMonetary value="—" />
+          </div>
+        )}
+        {periodoIncompleto && !amostraFraca && (
           <div className="kpi-clickable-container" onClick={kpiFmt.toggle} title={kpiFmt.tooltipHint}>
             <span className="kpi-toggle-hint">{kpiFmt.expandIcon}</span>
             {/* Medida PROJECAO do pbix (media diaria x dias do periodo). Fala do
@@ -671,7 +693,8 @@ const PageVendas = () => {
         <div className="card-title-row">
           <h2 className="card-title">Desempenho por marketplace</h2>
           <span style={{ fontSize: 11.5, color: "var(--mute)" }}>
-            {periodoIncompleto && `projetado = ritmo de ${diasDecorridos}d aplicado aos ${diasAlvo}d · `}
+            {periodoIncompleto && !amostraFraca && `projetado = ritmo de ${diasDecorridos}d aplicado aos ${diasAlvo}d · `}
+            {amostraFraca && `projetado aguardando ${MIN_DIAS_PROJ} dias de dado (tem ${diasDecorridos}) · `}
             {tabela.length} loja(s) no filtro
           </span>
         </div>
@@ -701,8 +724,10 @@ const PageVendas = () => {
                   <td className="num green">{B.fmt(r.valor)}</td>
                   {periodoIncompleto && (
                     <td className="num vendas-proj-cell"
-                      title={`Se ${r.mkt} mantiver o ritmo dos ${diasDecorridos} dias corridos, fecha o período em ${B.fmt(r.projetado)}`}>
-                      {B.fmt(r.projetado)}
+                      style={amostraFraca ? { color: "var(--mute)" } : undefined}
+                      title={amostraFraca ? avisoAmostra
+                        : `Se ${r.mkt} mantiver o ritmo dos ${diasDecorridos} dias corridos, fecha o período em ${B.fmt(r.projetado)}`}>
+                      {amostraFraca ? "—" : B.fmt(r.projetado)}
                     </td>
                   )}
                   <td className="num" style={{ color: "var(--text-2)" }}>{r.share.toFixed(1).replace(".", ",")}%</td>
@@ -723,7 +748,13 @@ const PageVendas = () => {
               <tr className="total">
                 <td colSpan={MULTI_EMP ? 2 : 1}>Total</td>
                 <td className="num green">{B.fmt(cur.valor)}</td>
-                {periodoIncompleto && <td className="num vendas-proj-cell">{B.fmt(projecao)}</td>}
+                {periodoIncompleto && (
+                  <td className="num vendas-proj-cell"
+                    style={amostraFraca ? { color: "var(--mute)" } : undefined}
+                    title={amostraFraca ? avisoAmostra : undefined}>
+                    {amostraFraca ? "—" : B.fmt(projecao)}
+                  </td>
+                )}
                 <td className="num">100%</td>
                 <td className="num">{cur.pedidos.toLocaleString("pt-BR")}</td>
                 <td className="num">{B.fmt(ticket)}</td>
