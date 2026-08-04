@@ -3641,6 +3641,25 @@ table.t tr.total td {
 .vendas-t tr.total .vendas-proj-cell { cursor: default; }
 .vendas-t th { white-space: nowrap; }
 .vendas-t th:hover { color: var(--text); }
+/* Cabecalho de coluna fora de servico (valor suprimido por amostra fraca): nao
+   ordena, entao nao pode ter afordancia de clique — sem hover, sem cursor. */
+.vendas-t th.th-off, .vendas-t th.th-off:hover { color: var(--mute); }
+
+/* Aviso de amostra fraca: fica NO FLUXO, entre o titulo do card e a tabela, porque
+   o motivo do "—" em tooltip de hover nao chega em ninguem (e nem existe em touch).
+   Ambar igual a coluna e as barras projetadas — mesma familia visual de "estimativa",
+   nao de erro: nada esta quebrado, so falta dado. */
+.vendas-proj-aviso {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 0 0 12px; padding: 9px 12px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-left: 2px solid var(--amber);
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.06);
+  color: var(--text-2); font-size: 12.5px; line-height: 1.5;
+}
+.vendas-proj-aviso svg { color: var(--amber); }
+.vendas-proj-aviso b { color: var(--text); font-weight: 600; }
 
 @media (max-width: 700px) {
   .vendas-filter-lbl { min-width: 0; }

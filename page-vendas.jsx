@@ -382,6 +382,14 @@ const PageVendas = () => {
   const MIN_DIAS_PROJ = 7;
   const amostraFraca = periodoIncompleto && diasDecorridos < MIN_DIAS_PROJ;
   const avisoAmostra = `Amostra insuficiente para projetar: ${diasDecorridos} de ${MIN_DIAS_PROJ} dias mínimos. Com ${diasDecorridos} dia(s) o ritmo diário extrapolado para ${diasAlvo} dias não tem significado estatístico.`;
+  // Dia em que a projecao volta sozinha: diasDecorridos conta de range.de ate ATE
+  // inclusive, entao a base precisa alcancar range.de + (MIN-1). Dizer a DATA e o
+  // que fecha o ticket — "aguardando 7 dias" nao responde "quando aparece".
+  const diaProjOk = vdAddDays(range.de, MIN_DIAS_PROJ - 1);
+  // A coluna suprimida sai de servico como critério de ordenação. Se o usuario ja
+  // estava ordenando por ela num periodo fechado e trocou pro mes em curso, cai pra
+  // `valor` em vez de ordenar por um numero que a tela nao mostra.
+  const sortKeyEff = amostraFraca && sortKey === "projetado" ? "valor" : sortKey;
 
   const ticket = cur.pedidos > 0 ? cur.valor / cur.pedidos : 0;
   const mediaDia = cur.valor / diasDecorridos;
@@ -510,20 +518,26 @@ const PageVendas = () => {
     });
     const dir = sortDir === "asc" ? 1 : -1;
     rows.sort((a, b) => {
-      const av = a[sortKey], bv = b[sortKey];
+      const av = a[sortKeyEff], bv = b[sortKeyEff];
       if (typeof av === "string") return av.localeCompare(bv) * dir;
       const an = av == null ? -Infinity : av, bn = bv == null ? -Infinity : bv;
       return (an - bn) * dir;
     });
     return rows;
-  }, [cur, prev, sortKey, sortDir, diasDecorridos, diasAlvo]);
+  }, [cur, prev, sortKeyEff, sortDir, diasDecorridos, diasAlvo]);
 
-  const th = (key, label, cls) => (
-    <th className={cls} onClick={() => {
-      if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-      else { setSortKey(key); setSortDir(typeof tabela[0]?.[key] === "string" ? "asc" : "desc"); }
-    }} style={{ cursor: "pointer", userSelect: "none" }} title="Clique para ordenar">
-      {label}{sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : ""}
+  // `off` = coluna nao ordenavel. Clicar num cabecalho cuja coluna e toda "—"
+  // reordena as linhas por um valor invisivel: a tabela se mexe e a coluna nao muda,
+  // o que se le como defeito. O print do ticket de 04/08/26 veio ordenado por
+  // `projetado ▲` — foi assim que o cliente "confirmou" que a coluna estava quebrada.
+  const th = (key, label, cls, off) => (
+    <th className={[cls, off ? "th-off" : null].filter(Boolean).join(" ") || undefined}
+      onClick={off ? undefined : () => {
+        if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        else { setSortKey(key); setSortDir(typeof tabela[0]?.[key] === "string" ? "asc" : "desc"); }
+      }} style={{ cursor: off ? "default" : "pointer", userSelect: "none" }}
+      title={off ? avisoAmostra : "Clique para ordenar"}>
+      {label}{!off && sortKeyEff === key ? (sortDir === "asc" ? " ▲" : " ▼") : ""}
     </th>
   );
 
@@ -694,10 +708,26 @@ const PageVendas = () => {
           <h2 className="card-title">Desempenho por marketplace</h2>
           <span style={{ fontSize: 11.5, color: "var(--mute)" }}>
             {periodoIncompleto && !amostraFraca && `projetado = ritmo de ${diasDecorridos}d aplicado aos ${diasAlvo}d · `}
-            {amostraFraca && `projetado aguardando ${MIN_DIAS_PROJ} dias de dado (tem ${diasDecorridos}) · `}
             {tabela.length} loja(s) no filtro
           </span>
         </div>
+
+        {/* Motivo do "—" tem que estar AQUI, no fluxo, acima da tabela. Antes vivia
+            so em tooltip de hover e nesta legenda 11.5px alinhada a direita,
+            misturada com "N loja(s) no filtro" — ninguem le, e o resultado foi o
+            ticket de 04/08/26 ("a coluna esta vazia"). Hover tambem nao existe em
+            touch. Diz a data em que volta, senao a pergunta seguinte e "quando?". */}
+        {amostraFraca && (
+          <div className="vendas-proj-aviso">
+            <Icon name="calendar" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 1 }} />
+            <span>
+              A coluna <b>Faturamento projetado</b> precisa de <b>{MIN_DIAS_PROJ} dias</b> de dado para
+              significar algo — este período tem <b>{diasDecorridos}</b> (base até {vdLabelBR(ATE)}).
+              Ela se preenche sozinha quando a base alcançar <b>{vdLabelBR(diaProjOk)}</b>.
+            </span>
+          </div>
+        )}
+
         <div className="t-scroll">
           <table className="t vendas-t">
             <thead>
@@ -707,7 +737,7 @@ const PageVendas = () => {
                 {th("valor", "Faturamento", "num")}
                 {/* So faz sentido em periodo em curso; num mes fechado seria copia
                     da coluna de faturamento. */}
-                {periodoIncompleto && th("projetado", "Faturamento projetado", "num")}
+                {periodoIncompleto && th("projetado", "Faturamento projetado", "num", amostraFraca)}
                 {th("share", "Share", "num")}
                 {th("pedidos", "Pedidos", "num")}
                 {th("ticket", "Ticket médio", "num")}
