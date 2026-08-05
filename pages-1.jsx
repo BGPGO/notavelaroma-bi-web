@@ -511,13 +511,19 @@ const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
           <div className="card-title-row">
             <h2 className="card-title">Extrato de receitas {window.ddArray(drilldown).length ? `· ${window.ddArray(drilldown).map(d => d.label).join(" + ")}` : ""}</h2>
           </div>
-          <div className="t-scroll">
+          <div className="t-scroll t-scroll-extrato">
             <table className="t">
               <thead>
                 <tr><th>Data</th><th>Categoria</th><th>Cliente</th><th className="num">Receita</th></tr>
               </thead>
               <tbody>
-                {extratoFiltrado.slice(0, 30).map((e, i) => (
+                {/* Sem slice: o cliente reclamou (04/08/26) que ao filtrar por status
+                    nao via todos os lancamentos. Eram DOIS cortes empilhados — este
+                    `.slice(0, 30)` e o `slice(0, 200)` do aggregateTx. Em 2026 a
+                    Notavel tem 640 receitas realizadas e 1186 despesas: 30 linhas
+                    escondiam 95% da lista. Custo zero de payload — o ALL_TX inteiro
+                    ja vai pro browser e o extrato e reconstruido no cliente. */}
+                {extratoFiltrado.map((e, i) => (
                   <tr key={i}>
                     <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{e[0]}</td>
                     <td>{e[2]}</td>
@@ -528,8 +534,11 @@ const PageReceita = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
                 {extratoFiltrado.length === 0 && (
                   <tr><td colSpan="4" style={{ color: "var(--mute)", textAlign: "center", padding: 18 }}>Sem receitas no filtro selecionado</td></tr>
                 )}
+                {/* Contagem no rodape (padrao do Cortez): torna a lista auditavel e
+                    faz qualquer corte futuro ser VISIVEL — o de 30 linhas passou
+                    despercebido justamente por nao ter numero nenhum na tela. */}
                 <tr className="total">
-                  <td colSpan="3">Total{drilldown ? " (filtrado)" : ""}</td>
+                  <td colSpan="3">Total ({extratoFiltrado.length.toLocaleString("pt-BR")} lançamento{extratoFiltrado.length === 1 ? "" : "s"}){drilldown ? " · filtrado" : ""}</td>
                   <td className="num green">{B.fmt(totalFiltrado)}</td>
                 </tr>
               </tbody>
@@ -615,13 +624,15 @@ const PageDespesa = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
           <div className="card-title-row">
             <h2 className="card-title">Extrato de despesas {window.ddArray(drilldown).length ? `· ${window.ddArray(drilldown).map(d => d.label).join(" + ")}` : ""}</h2>
           </div>
-          <div className="t-scroll">
+          <div className="t-scroll t-scroll-extrato">
             <table className="t">
               <thead>
                 <tr><th>Data</th><th>Categoria</th><th>Fornecedor</th><th className="num">Despesa</th></tr>
               </thead>
               <tbody>
-                {extratoFiltrado.slice(0, 30).map((e, i) => (
+                {/* Sem slice — ver comentario no extrato de receitas. Aqui doia mais:
+                    1186 despesas realizadas em 2026 contra 30 linhas exibidas. */}
+                {extratoFiltrado.map((e, i) => (
                   <tr key={i}>
                     <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{e[0]}</td>
                     <td>{e[2]}</td>
@@ -633,7 +644,7 @@ const PageDespesa = ({ filters, setFilters, onOpenFilters, statusFilter, drilldo
                   <tr><td colSpan="4" style={{ color: "var(--mute)", textAlign: "center", padding: 18 }}>Sem despesas no filtro selecionado</td></tr>
                 )}
                 <tr className="total">
-                  <td colSpan="3">Total{drilldown ? " (filtrado)" : ""}</td>
+                  <td colSpan="3">Total ({extratoFiltrado.length.toLocaleString("pt-BR")} lançamento{extratoFiltrado.length === 1 ? "" : "s"}){drilldown ? " · filtrado" : ""}</td>
                   <td className="num red">{B.fmt(totalFiltrado)}</td>
                 </tr>
               </tbody>

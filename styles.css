@@ -681,6 +681,26 @@ table.t tr.total td {
 .t-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .t-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
 
+/* -------- Extrato de receitas/despesas: variante alta --------
+   Modificador, NAO alteracao do `.t-scroll` global — ele veste toda tabela do BI
+   (Fluxo, Comparativo, Tesouraria, Vendas) e subir os 320px de todas pra 550
+   desalinharia os cards das outras telas.
+   O `thead th` ja e sticky por padrao (regra `table.t th`), entao rolar 640 linhas
+   nao perde o cabecalho. O que faltava era o TOTAL: com 30 linhas ele ficava logo
+   abaixo; com 1186 despesas, o cliente teria que rolar a lista inteira pra ver a
+   soma. Fixado no rodape, fica sempre visivel — e o `--surface-2` e opaco, entao
+   as linhas nao aparecem atras.
+   Seletor COMPOSTO (`.t-scroll.t-scroll-extrato`) de proposito: com uma classe so,
+   a especificidade empata com `.t-scroll` e quem ganha e quem vier depois no
+   arquivo — os 550px sumiriam calados dependendo da ordem. */
+.t-scroll.t-scroll-extrato { max-height: 550px; }
+.t-scroll-extrato table.t tr.total td {
+  position: sticky; bottom: 0; z-index: 3;
+  background: var(--surface-2);
+  /* box-shadow em vez de border: celula sticky perde o border-top ao deslocar. */
+  box-shadow: 0 -1px 0 var(--border-2);
+}
+
 /* ============== FLUXO: variantes de layout (sandbox) ============== */
 .fluxo-variant-bar {
   display: flex;
