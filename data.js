@@ -1,4 +1,4 @@
-/* BGP BI — gerado por build-data.cjs em 2026-08-05T15:03:12.176Z */
+/* BGP BI — gerado por build-data.cjs em 2026-08-05T16:41:47.075Z */
 /* Empresa: Notável Aroma | Ano ref: 2026 */
 const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const MONTHS_FULL = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -23,7 +23,7 @@ const META = {
   "empresa": {
     "nome_fantasia": "Notável Aroma"
   },
-  "fetched_at": "2026-08-05T15:03:05.390Z",
+  "fetched_at": "2026-08-05T16:41:44.343Z",
   "ref_year": 2026,
   "counts": {
     "contas_pagar": 0,
@@ -18886,9 +18886,26 @@ function aggregateTx(txList, year, receitaScope) {
     DESPESA_CATEGORIAS: topN(despCat, 100),
     RECEITA_CLIENTES: topN(recCli, 100),
     DESPESA_FORNECEDORES: topN(despForn, 100),
-    EXTRATO: extratoArr.slice(0, 200),
-    EXTRATO_RECEITAS: extratoRecArr.slice(0, 200),
-    EXTRATO_DESPESAS: extratoDespArr.slice(0, 200),
+    // Cap de 5000, era 200 (04/08/26). Custo de payload: ZERO — aggregateTx roda no
+    // BROWSER a cada troca de filtro, sobre o ALL_TX que ja foi baixado inteiro. O
+    // slice nao economizava download, so escondia linhas.
+    //
+    // Os 200 causavam DOIS defeitos, e o segundo e o grave:
+    //  1. Extrato truncado: Notavel/2026 tem 640 receitas realizadas e 1186 despesas.
+    //  2. "Ticket medio" ERRADO em pages-1.jsx — ele divide TOTAL_RECEITA por
+    //     EXTRATO_RECEITAS.length, que era o cap, nao a contagem real. Dava
+    //     R$ 9.879,91 contra R$ 3.087,47 (3,2x) na receita e 5,9x na despesa.
+    //     Ou seja: mexer neste numero mexe em KPI exibido. Nao e so cosmetico.
+    //
+    // 5000 e teto de sanidade (protege render de tabela em cliente gigante), nao
+    // regra de negocio. Se algum cliente saturar, o sintoma volta a ser ticket
+    // inflado — conferir EXTRATO_RECEITAS.length contra o count cru de ALL_TX.
+    //
+    // ATENCAO: este bloco vive DENTRO do template literal que gera o data.js.
+    // Backtick em comentario aqui fecha a string e quebra o build.
+    EXTRATO: extratoArr.slice(0, 5000),
+    EXTRATO_RECEITAS: extratoRecArr.slice(0, 5000),
+    EXTRATO_DESPESAS: extratoDespArr.slice(0, 5000),
     RECEITA_DIA: RECEITA_DIA,
     DESPESA_DIA: DESPESA_DIA,
     SALDOS_MES: SALDOS_MES,
