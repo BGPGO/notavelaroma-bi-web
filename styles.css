@@ -681,7 +681,10 @@ table.t tr.total td {
 .t-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .t-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
 
-/* -------- Extrato de receitas/despesas: variante alta --------
+/* -------- Variante alta: extrato de receitas/despesas + Fluxo a vencer --------
+   Usada em 3 tabelas longas: os 2 extratos (pages-1.jsx) e o Fluxo a vencer da
+   Tesouraria (pages-2.jsx, desde 07/08/26 — pedido do cliente pra ver todos os
+   lancamentos; a tabela tinha `maxHeight: 380` inline, que saiu pra classe valer).
    Modificador, NAO alteracao do `.t-scroll` global — ele veste toda tabela do BI
    (Fluxo, Comparativo, Tesouraria, Vendas) e subir os 320px de todas pra 550
    desalinharia os cards das outras telas.

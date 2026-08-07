@@ -1281,8 +1281,18 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
     });
   }, [drilldown, todayKey, saldoBaseInicial, headerEmp]);
 
-  // Tabela limita a 60 linhas, mas análise de risco usa o full
-  const fluxoFuturo = useMemo(() => fluxoFuturoFull.slice(0, 60), [fluxoFuturoFull]);
+  // Sem cap: o cliente pediu (07/08/26) pra ver todos os lançamentos a vencer, igual ao
+  // que foi feito no extrato de receitas/despesas em `1082975`. O `.slice(0, 60)` que
+  // morava aqui escondia 90% da lista na Notável (60 de 573) e 94% na Ornata (60 de
+  // 1.005) — e como as parcelas vão até 2030, quem procurava um vencimento de 2027 nunca
+  // achava. Diferente do extrato, aqui NENHUM número dependia do cap: banner de risco,
+  // saldo mínimo e o chart de projeção já liam o `fluxoFuturoFull`.
+  const fluxoFuturo = fluxoFuturoFull;
+  // Rodapé sticky da tabela: soma dos movimentos e saldo no fim do horizonte. Com 573
+  // linhas ordenadas por data, o saldo final fica a ~520 linhas de scroll — sem isto a
+  // lista deixa de ser auditável de bater o olho.
+  const fluxoTotalMov = useMemo(() => fluxoFuturo.reduce((s, e) => s + (e[4] || 0), 0), [fluxoFuturo]);
+  const fluxoSaldoFinal = fluxoFuturo.length ? fluxoFuturo[fluxoFuturo.length - 1][6] : saldoBaseInicial;
 
   // Análise de risco de caixa: quando o saldo cai abaixo de zero pela 1ª vez?
   // Mínimo projetado e em qual data?
@@ -1514,7 +1524,10 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
               <SaldoProjetadoChart pontos={saldoDiario} saldoInicial={saldoBaseInicial} fmt={B.fmt} isMobile={isMobile} />
             </div>
           )}
-          <div className="t-scroll" style={{ maxHeight: 380 }}>
+          {/* `t-scroll-extrato` = variante de 550px + linha de Total sticky no rodapé
+              (styles.css). O `maxHeight: 380` inline saiu JUNTO e não por descuido: estilo
+              inline vence classe, então os 550px nunca chegariam a valer. */}
+          <div className="t-scroll t-scroll-extrato">
             <table className="t">
               <thead>
                 <tr><th>Vence</th><th>Cliente / Fornecedor</th><th className="num">Movimento</th><th className="num">Saldo</th></tr>
@@ -1540,14 +1553,19 @@ const PageTesouraria = ({ filters, setFilters, onOpenFilters, statusFilter, dril
                     </tr>
                   );
                 })}
+                {/* Contagem no rodapé (mesmo padrão do extrato): torna a lista auditável e
+                    faz qualquer corte futuro ser VISÍVEL. O aviso "Mostrando primeiros 60 de
+                    N" que ficava fora da tabela saiu — não existe mais corte pra anunciar. */}
+                {fluxoFuturo.length > 0 && (
+                  <tr className="total">
+                    <td colSpan="2">Total ({fluxoFuturo.length.toLocaleString("pt-BR")} lançamento{fluxoFuturo.length === 1 ? "" : "s"})</td>
+                    <td className={`num ${fluxoTotalMov < 0 ? "red" : "green"}`}>{B.fmt(fluxoTotalMov)}</td>
+                    <td className="num" style={{ fontWeight: 700, color: fluxoSaldoFinal < 0 ? "var(--red)" : "var(--cyan)" }}>{B.fmt(fluxoSaldoFinal)}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-          {fluxoFuturoFull.length > 60 && (
-            <div className="status-line" style={{ marginTop: 8, fontSize: 11, textAlign: "center" }}>
-              Mostrando primeiros 60 de {fluxoFuturoFull.length} lançamentos · análise de risco usa todos
-            </div>
-          )}
         </div>
       </div>
     </div>
